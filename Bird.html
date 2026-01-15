@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>BIRD ARCADE</title>
+<style>
+/* =================== Estilo Geral =================== */
+body {
+    margin: 0;
+    background: linear-gradient(to bottom, #1e3c72, #2a5298); /* Céu gradiente */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+#cabinet {
+    background: #000;
+    padding: 20px;
+    border: 6px solid #444;
+    position: relative;
+    border-radius: 10px;
+    box-shadow: 0 0 40px rgba(0,255,0,0.5);
+}
+
+canvas {
+    display: block;
+    border-radius: 5px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    background: linear-gradient(to bottom, #87ceeb, #4b79a1);
+}
+
+/* =================== Botão Sair =================== */
+#exitBtn {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    padding: 5px 10px;
+    font-size: 10px;
+    background: #000;
+    color: #f00; /* Vermelho para diferenciar */
+    border: 2px solid #f00;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    border-radius: 5px;
+    transition: 0.2s;
+    z-index: 30; /* Acima de tudo */
+}
+
+#exitBtn:hover {
+    background: #f00;
+    color: #000;
+}
+
+/* =================== Botões e UI de Fim de Jogo =================== */
+#gameOverContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none; /* Escondido por padrão */
+    flex-direction: column;
+    align-items: center;
+    width: 280px;
+    z-index: 10;
+}
+
+#gameOverTitle {
+    color: #f00;
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px #000;
+    text-align: center;
+}
+
+#scoreBoard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#finalScoreText {
+    color: #fff;
+    font-size: 18px;
+    text-shadow: 2px 2px #000;
+    text-align: center;
+}
+
+#highScoreText {
+    color: #ff0;
+    font-size: 16px;
+    text-shadow: 2px 2px #000;
+    text-align: center;
+}
+
+#playBtn, #skipTutorialBtn, #startTutorialBtn, #tutorialContinueBtn {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: #000;
+    color: #0f0;
+    border: 2px solid #0f0;
+    cursor: pointer;
+    letter-spacing: 2px;
+    border-radius: 5px;
+    transition: 0.2s;
+    width: 100%;
+}
+
+#playBtn:hover, #skipTutorialBtn:hover, #startTutorialBtn:hover, #tutorialContinueBtn:hover {
+    background: #0f0;
+    color: #000;
+}
+
+/* =================== Tutorial Overlay =================== */
+#tutorialOverlay {
+    position: absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background: rgba(0,0,0,0.85);
+    color: #0f0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    z-index: 20;
+}
+#tutorialOverlay h2 {
+    font-size: 24px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px #0f0;
+}
+#tutorialOverlay p {
+    font-size: 16px;
+    line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<div id="cabinet">
+    <button id="exitBtn">SAIR</button>
+    <canvas id="game" width="400" height="600"></canvas>
+
+    <div id="gameOverContainer">
+        <div id="gameOverTitle">GAME OVER</div>
+        <button id="playBtn">▶ PLAY</button>
+        <div id="scoreBoard">
+            <div id="finalScoreText">SCORE: 0</div>
+            <div id="highScoreText">BEST: 0</div>
+        </div>
+    </div>
+
+    <div id="tutorialOverlay">
+        <h2>Bem-vindo ao Bird Arcade!</h2>
+        <p>
+            Controle o pássaro e passe pelos canos sem bater neles!<br>
+            Clique ou pressione a tecla <strong>Espaço</strong> para voar.<br>
+            Quanto mais canos você passar, maior sua pontuação.
+        </p>
+        <button id="startTutorialBtn">Começar Tutorial</button>
+        <button id="skipTutorialBtn">Ignorar Tutorial</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const playBtn = document.getElementById("playBtn");
+const exitBtn = document.getElementById("exitBtn");
+const gameOverContainer = document.getElementById("gameOverContainer");
+const finalScoreText = document.getElementById("finalScoreText");
+const highScoreText = document.getElementById("highScoreText");
+const tutorialOverlay = document.getElementById("tutorialOverlay");
+const startTutorialBtn = document.getElementById("startTutorialBtn");
+const skipTutorialBtn = document.getElementById("skipTutorialBtn");
+
+let bird, pipes, score, gravity, jump, pipeWidth, gap, speed;
+let gameRunning = false;
+let frameCount = 0;
+
+// Carregar High Score do armazenamento local
+let highscore = localStorage.getItem("flappyHighScore") || 0;
+
+// =================== Funções ===================
+
+function startGame() {
+    bird = { x: 80, y: 300, w: 20, h: 20, vel: 0 };
+    pipes = [];
+    score = 0;
+    gravity = 0.5;
+    jump = -8;
+    pipeWidth = 50;
+    gap = 140;
+    speed = 2;
+    frameCount = 0;
+    gameRunning = true;
+    
+    gameOverContainer.style.display = "none";
+    tutorialOverlay.style.display = "none";
+    
+    createPipe();
+    loop();
+}
+
+function createPipe() {
+    let topHeight = Math.floor(Math.random() * 300) + 40;
+    pipes.push({
+        x: canvas.width,
+        top: topHeight,
+        bottom: canvas.height - topHeight - gap,
+        passed: false
+    });
+}
+
+function flap() {
+    if(gameRunning) bird.vel = jump;
+}
+
+document.addEventListener("keydown", e => {
+    if(e.code === "Space") flap();
+});
+document.addEventListener("click", (e) => {
+    if (e.target.tagName !== "BUTTON") flap();
+});
+document.addEventListener("touchstart", e => { 
+    if (e.target.tagName !== "BUTTON") {
+        e.preventDefault(); 
+        flap(); 
+    }
+});
+
+// =================== Loop principal ===================
+function loop() {
+    if (!gameRunning) return;
+    frameCount++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Fundo
+    ctx.fillStyle = "#87ceeb";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let i=0;i<5;i++){
+        ctx.fillStyle = "rgba(255,255,255,0.6)";
+        ctx.beginPath();
+        ctx.arc(50+i*80 + (frameCount%200),50 + i*30, 20,0,Math.PI*2);
+        ctx.fill();
+    }
+
+    // Pássaro
+    bird.vel += gravity;
+    bird.y += bird.vel;
+    ctx.fillStyle = "#ff0";
+    ctx.fillRect(bird.x, bird.y, bird.w, bird.h);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(bird.x + 12, bird.y + 5, 4, 4);
+
+    // Canos
+    pipes.forEach(pipe => {
+        pipe.x -= speed;
+        ctx.fillStyle = "#228B22";
+        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+        ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+
+        ctx.strokeStyle = "#006400";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.top);
+        ctx.strokeRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+
+        if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+            score++;
+            pipe.passed = true;
+            if(score % 5 === 0){
+                speed += 0.3;
+                gap = Math.max(90, gap - 5);
+            }
+        }
+
+        if (bird.x < pipe.x + pipeWidth &&
+            bird.x + bird.w > pipe.x &&
+            (bird.y < pipe.top || bird.y + bird.h > canvas.height - pipe.bottom)) {
+            endGame();
+        }
+    });
+
+    pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+    if(pipes.length === 0 || pipes[pipes.length-1].x < 200) createPipe();
+
+    if(bird.y < 0 || bird.y + bird.h > canvas.height) endGame();
+
+    // Pontuação durante o jogo
+    ctx.fillStyle = "#fff";
+    ctx.font = "20px monospace";
+    ctx.fillText("SCORE " + score, 10, 25);
+
+    requestAnimationFrame(loop);
+}
+
+// =================== Fim de jogo ===================
+function endGame() {
+    gameRunning = false;
+    
+    // Lógica do High Score
+    if (score > highscore) {
+        highscore = score;
+        localStorage.setItem("flappyHighScore", highscore);
+    }
+
+    gameOverContainer.style.display = "flex";
+    finalScoreText.innerText = "SCORE: " + score;
+    highScoreText.innerText = "BEST: " + highscore;
+}
+
+// =================== Botões ===================
+playBtn.addEventListener("click", startGame);
+
+exitBtn.addEventListener("click", () => {
+    // Tenta fechar a aba atual
+    window.close();
+});
+
+startTutorialBtn.addEventListener("click", () => {
+    tutorialOverlay.innerHTML = `
+        <h2>Tutorial</h2>
+        <p>
+            1️⃣ Clique ou pressione Espaço para voar.<br>
+            2️⃣ Passe pelos canos sem encostar.<br>
+            3️⃣ Cada cano passado = 1 ponto.<br>
+            4️⃣ A dificuldade aumenta com o tempo!
+        </p>
+        <button id="tutorialContinueBtn">Começar Jogo</button>
+    `;
+    document.getElementById("tutorialContinueBtn").addEventListener("click", startGame);
+});
+skipTutorialBtn.addEventListener("click", startGame);
+
+</script>
+</body>
+</html>

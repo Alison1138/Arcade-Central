@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Central | Library</title>
+    <style>
+        :root {
+            /* Variáveis Base */
+            --steam-bg-dark: #171a21;
+            --steam-bg-light: #1b2838;
+            --steam-card: #2a475e;
+            --steam-text: #c7d5e0;
+            --steam-accent: #66c0f4;
+            --bg-gradient-top: #2a475e;
+            --bg-gradient-bottom: #171a21;
+            
+            --sidebar-width: 260px;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--steam-bg-dark);
+            background: radial-gradient(circle at top center, var(--bg-gradient-top) 0%, var(--bg-gradient-bottom) 60%);
+            background-attachment: fixed;
+            color: var(--steam-text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: background 0.5s ease, color 0.5s ease;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--steam-bg-dark);
+            padding: 15px 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,0,0,0.3);
+            z-index: 100;
+            transition: background-color 0.5s ease;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--steam-text);
+            flex-grow: 1;
+        }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        .main-container { display: flex; flex: 1; }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: rgba(17, 20, 25, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.3s ease, margin-left 0.3s ease, background-color 0.5s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            margin-left: calc(var(--sidebar-width) * -1);
+            transform: translateX(-100%);
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            color: var(--steam-text);
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: bold;
+            margin: 15px 0 5px 10px;
+        }
+
+        .category-btn {
+            background: transparent;
+            border: none;
+            color: var(--steam-text);
+            text-align: left;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+            transition: 0.2s;
+            width: 100%;
+        }
+
+        .category-btn:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .category-btn.active {
+            background-color: var(--steam-card);
+            color: var(--steam-accent);
+            box-shadow: inset 3px 0 0 var(--steam-accent);
+        }
+
+        @keyframes pulse-accent {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+
+        .surprise-btn {
+            background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            font-weight: bold;
+            margin-top: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            animation: pulse-accent 2s infinite;
+        }
+
+        .custom-container {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            margin: 0 5px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .custom-container.expanded {
+            max-height: 100px;
+            padding: 12px 5px;
+            margin-bottom: 10px;
+        }
+
+        .color-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .color-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.2);
+            border-color: #fff;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal-content {
+            background: var(--steam-bg-light);
+            border: 1px solid var(--steam-accent);
+            padding: 40px;
+            border-radius: 4px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 0 30px rgba(102, 192, 244, 0.2);
+            transform: scale(0.8);
+            transition: 0.3s;
+        }
+
+        .modal-overlay.active .modal-content { transform: scale(1); }
+
+        .modal-content h2 { margin-top: 0; color: var(--steam-text); font-size: 1.5rem; }
+        .modal-content p { color: var(--steam-text); margin-bottom: 30px; }
+
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+
+        .btn-modal {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            transition: 0.2s;
+        }
+
+        .btn-confirm { background: var(--steam-accent); color: #171a21; }
+        .btn-confirm:hover { filter: brightness(1.2); }
+        .btn-cancel { background: #3d4450; color: #fff; }
+        .btn-cancel:hover { background: #4d5563; }
+
+        .content-area { flex-grow: 1; padding: 30px; }
+        .search-container { margin-bottom: 30px; }
+        input[type="text"] {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 12px 15px;
+            color: var(--steam-text);
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+            transition: background 0.3s, color 0.3s;
+        }
+        input[type="text"]::placeholder { color: var(--steam-text); opacity: 0.6; }
+
+        #gameGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .game-card {
+            background: var(--steam-bg-light);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                        border-color 0.3s, 
+                        box-shadow 0.3s, 
+                        opacity 0.4s ease,
+                        background 0.5s ease;
+            opacity: 1;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .game-card.fade-out { opacity: 0; transform: scale(0.95); }
+        .game-card.hidden { display: none !important; }
+
+        .game-card:hover { 
+            transform: translateY(-8px) scale(1.02);
+            border-color: var(--steam-accent); 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 15px var(--steam-accent);
+            z-index: 10;
+        }
+
+        .game-card.highlight-surprise {
+            border-color: #f1c40f;
+            box-shadow: 0 0 30px rgba(241, 196, 15, 0.7);
+            transform: scale(1.08);
+            z-index: 20;
+        }
+
+        .fav-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            border: none;
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .fav-btn.active { color: #f1c40f; background: rgba(0,0,0,0.8); }
+
+        .card-thumb { 
+            height: 130px; 
+            width: 100%; 
+            opacity: 0.9; 
+            position: relative;
+            overflow: hidden;
+        }
+
+        .thumb-snake { background: linear-gradient(45deg, #11998e, #38ef7d); }
+        .thumb-sudoku { background: linear-gradient(45deg, #83a4d4, #b6fbff); }
+        .thumb-mines { background: linear-gradient(45deg, #cb2d3e, #ef473a); }
+        .thumb-tictac { background: linear-gradient(45deg, #ff9966, #ff5e62); }
+        .thumb-dama { background: linear-gradient(45deg, #1c92d2, #f2fcfe); } 
+        .thumb-word { background: linear-gradient(45deg, #8E2DE2, #4A00E0); }
+        .thumb-pong { background: linear-gradient(45deg, #000000, #434343); }
+        .thumb-bird { background: linear-gradient(45deg, #87ceeb, #4b79a1); }
+        .thumb-memory { background: linear-gradient(45deg, #f2994a, #f2c94c); }
+        .thumb-history { background: linear-gradient(45deg, #8b4513, #d2b48c); }
+
+        .game-info { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
+        h3 { margin: 0 0 10px 0; font-size: 1.1rem; color: var(--steam-text); }
+        p { color: var(--steam-text); font-size: 0.85rem; margin-bottom: 15px; flex-grow: 1; line-height: 1.4; opacity: 0.7; }
+
+        .play-link {
+            background: var(--steam-accent);
+            color: #171a21;
+            text-decoration: none;
+            text-align: center;
+            padding: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+            border-radius: 2px;
+            transition: filter 0.2s, transform 0.2s;
+        }
+        .play-link:hover { filter: brightness(1.2); transform: scale(1.05); }
+
+    </style>
+</head>
+<body>
+
+<div class="modal-overlay" id="surpriseModal">
+    <div class="modal-content">
+        <div style="font-size: 40px; margin-bottom: 10px;">🎲</div>
+        <h2 id="modalGameTitle">Nome do Jogo</h2>
+        <p>Sua sorte está lançada! Deseja iniciar uma partida agora?</p>
+        <div class="modal-buttons">
+            <button class="btn-modal btn-confirm" id="btnGoToGame">JOGAR AGORA</button>
+            <button class="btn-modal btn-cancel" onclick="closeModal()">FECHAR</button>
+        </div>
+    </div>
+</div>
+
+<header>
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <h1>ARCADE <span style="font-weight: 300;">CENTRAL</span></h1>
+</header>
+
+<div class="main-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-title">Coleções</div>
+        <button class="category-btn active" onclick="setFilter('all', this)">Todos os Jogos</button>
+        <button class="category-btn" onclick="setFilter('favorites', this)"> Favoritos</button>
+        <button class="category-btn" onclick="setFilter('recent', this)"> Recentes</button>
+        
+        <button class="category-btn surprise-btn" onclick="surpriseMe()">🎲 Surpreenda-me!</button>
+
+        <div class="sidebar-title">Área Educacional</div>
+        <button class="category-btn" onclick="setFilter('Educacional', this)">Jogos de Aprendizado</button>
+
+        <div class="sidebar-title">Customização</div>
+        <button class="category-btn" onclick="toggleCustomizer()"> Alterar Tema</button>
+        <div class="custom-container" id="customizer">
+            <div class="color-options">
+                <div class="color-dot" style="background: #66c0f4;" onclick="changeTheme('#66c0f4', '#2a475e', '#1b2838', '#171a21')"></div>
+                <div class="color-dot" style="background: #a347ff;" onclick="changeTheme('#a347ff', '#382a5e', '#231b38', '#1a1721')"></div>
+                <div class="color-dot" style="background: #ff4747;" onclick="changeTheme('#ff4747', '#5e2a2a', '#381b1b', '#211717')"></div>
+                <div class="color-dot" style="background: #47ff85;" onclick="changeTheme('#47ff85', '#2a5e3d', '#1b3823', '#17211a')"></div>
+                <div class="color-dot" style="background: #ffca47;" onclick="changeTheme('#ffca47', '#5e4e2a', '#38301b', '#211e17')"></div>
+            </div>
+        </div>
+
+        <div class="sidebar-title">Gêneros</div>
+        <button class="category-btn" onclick="setFilter('Clássico', this)">Clássico</button>
+        <button class="category-btn" onclick="setFilter('Lógica', this)">Lógica</button>
+        <button class="category-btn" onclick="setFilter('Estratégia', this)">Estratégia</button>
+    </aside>
+
+    <main class="content-area">
+        <div class="search-container">
+            <input type="text" id="searchBar" placeholder="Buscar na biblioteca..." onkeyup="filterGames()">
+        </div>
+
+        <div id="gameGrid">
+            <div class="game-card hidden" data-id="memory" data-name="Memória Bilíngue" data-genre="Educacional">
+                <button class="fav-btn" onclick="toggleFav('memory')">★</button>
+                <div class="card-thumb thumb-memory"></div>
+                <div class="game-info">
+                    <h3>Memória Bilíngue</h3>
+                    <p>Exercite o cérebro e aprenda vocabulário em inglês.</p>
+                    <a href="memoria.html" target="_blank" class="play-link" onclick="recordRecent('memory')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card hidden" data-id="wordsearch-edu" data-name="Caça-Palavras Educativo" data-genre="Educacional">
+                <button class="fav-btn" onclick="toggleFav('wordsearch-edu')">★</button>
+                <div class="card-thumb thumb-word"></div>
+                <div class="game-info">
+                    <h3>Caça-Palavras Bilingue</h3>
+                    <p>Encontre as palavras escondidas no tabuleiro colorido.</p>
+                    <a href="caçabl.html" target="_blank" class="play-link" onclick="recordRecent('wordsearch-edu')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card hidden" data-id="cartas-historia" data-name="Cartas História" data-genre="Educacional">
+                <button class="fav-btn" onclick="toggleFav('cartas-historia')">★</button>
+                <div class="card-thumb thumb-history"></div>
+                <div class="game-info">
+                    <h3>Cartas História</h3>
+                    <p>Viaje pelo tempo e aprenda sobre grandes eventos e personagens históricos.</p>
+                    <a href="cartasHistoria.html" target="_blank" class="play-link" onclick="recordRecent('cartas-historia')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="caca-colorido" data-name="Caça-Palavras Colorido" data-genre="Lógica">
+                <button class="fav-btn" onclick="toggleFav('caca-colorido')">★</button>
+                <div class="card-thumb thumb-word" style="filter: hue-rotate(45deg);"></div>
+                <div class="game-info">
+                    <h3>Caça-Palavras Colorido</h3>
+                    <p>O desafio clássico de encontrar palavras com visual vibrante.</p>
+                    <a href="caça3.html" target="_blank" class="play-link" onclick="recordRecent('caca-colorido')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="snake" data-name="Snake Cobrinha" data-genre="Clássico">
+                <button class="fav-btn" onclick="toggleFav('snake')">★</button>
+                <div class="card-thumb thumb-snake"></div>
+                <div class="game-info">
+                    <h3>Jogo da Cobrinha</h3>
+                    <p>O clássico atemporal da serpente.</p>
+                    <a href="Snake2.html" target="_blank" class="play-link" onclick="recordRecent('snake')">JOGAR AGORA</a>
+                </div>
+            </div>
+            
+            <div class="game-card" data-id="bird" data-name="Bird Arcade" data-genre="Clássico">
+                <button class="fav-btn" onclick="toggleFav('bird')">★</button>
+                <div class="card-thumb thumb-bird"></div>
+                <div class="game-info">
+                    <h3>Bird Arcade</h3>
+                    <p>Voe entre os canos neste desafio de reflexos.</p>
+                    <a href="Bird.html" target="_blank" class="play-link" onclick="recordRecent('bird')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="pong" data-name="Pong Evolution" data-genre="Clássico">
+                <button class="fav-btn" onclick="toggleFav('pong')">★</button>
+                <div class="card-thumb thumb-pong"></div>
+                <div class="game-info">
+                    <h3>Pong Evolution</h3>
+                    <p>O duelo de raquetes com sistema de níveis.</p>
+                    <a href="pong.html" target="_blank" class="play-link" onclick="recordRecent('pong')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="sudoku" data-name="Sudoku" data-genre="Lógica">
+                <button class="fav-btn" onclick="toggleFav('sudoku')">★</button>
+                <div class="card-thumb thumb-sudoku"></div>
+                <div class="game-info">
+                    <h3>Sudoku</h3>
+                    <p>Desafio matemático diário.</p>
+                    <a href="sudoku2.html" target="_blank" class="play-link" onclick="recordRecent('sudoku')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="mines" data-name="Campo Minado" data-genre="Estratégia">
+                <button class="fav-btn" onclick="toggleFav('mines')">★</button>
+                <div class="card-thumb thumb-mines"></div>
+                <div class="game-info">
+                    <h3>Campo Minado</h3>
+                    <p>Cuidado onde pisa!</p>
+                    <a href="CampoMinado2.html" target="_blank" class="play-link" onclick="recordRecent('mines')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="tictac" data-name="Jogo da Velha" data-genre="Clássico">
+                <button class="fav-btn" onclick="toggleFav('tictac')">★</button>
+                <div class="card-thumb thumb-tictac"></div>
+                <div class="game-info">
+                    <h3>Jogo da Velha</h3>
+                    <p>Duelo rápido de X e O.</p>
+                    <a href="JogoDaVelha2.html" target="_blank" class="play-link" onclick="recordRecent('tictac')">JOGAR AGORA</a>
+                </div>
+            </div>
+
+            <div class="game-card" data-id="dama" data-name="Damas Pro" data-genre="Estratégia">
+                <button class="fav-btn" onclick="toggleFav('dama')">★</button>
+                <div class="card-thumb thumb-dama"></div>
+                <div class="game-info">
+                    <h3>Damas Pro</h3>
+                    <p>Estratégia clássica de tabuleiro.</p>
+                    <a href="Dama.html" target="_blank" class="play-link" onclick="recordRecent('dama')">JOGAR AGORA</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    let currentFilter = 'all';
+    let selectedGameUrl = "";
+    let selectedGameId = "";
+
+    const sfx = {
+        hover: new Audio('https://www.soundjay.com/buttons/sounds/button-37.mp3'),
+        click: new Audio('https://www.soundjay.com/buttons/sounds/button-09.mp3'),
+        surprise: new Audio('https://www.soundjay.com/misc/sounds/magic-chime-01.mp3')
+    };
+    Object.values(sfx).forEach(sound => sound.volume = 0.15);
+
+    function initSounds() {
+        const interactive = document.querySelectorAll('.category-btn, .game-card, .play-link, .color-dot, .fav-btn, .menu-toggle');
+        interactive.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                sfx.hover.currentTime = 0;
+                sfx.hover.play().catch(() => {});
+            });
+            el.addEventListener('click', () => {
+                sfx.click.currentTime = 0;
+                sfx.click.play().catch(() => {});
+            });
+        });
+    }
+
+    function toggleCustomizer() {
+        document.getElementById('customizer').classList.toggle('expanded');
+    }
+
+    function applyCssVars(accent, card, light, dark, text) {
+        const root = document.documentElement;
+        root.style.setProperty('--steam-accent', accent);
+        root.style.setProperty('--steam-card', card);
+        root.style.setProperty('--bg-gradient-top', card);
+        root.style.setProperty('--steam-bg-light', light);
+        root.style.setProperty('--steam-bg-dark', dark);
+        root.style.setProperty('--bg-gradient-bottom', dark);
+        if(text) root.style.setProperty('--steam-text', text);
+    }
+
+    function changeTheme(accent, card, light, dark) {
+        const palette = { accent, card, light, dark };
+        localStorage.setItem('userPalette', JSON.stringify(palette));
+        if(currentFilter !== 'Educacional') {
+            applyCssVars(accent, card, light, dark, '#c7d5e0');
+        }
+    }
+
+    function restoreUserTheme() {
+        const savedPalette = localStorage.getItem('userPalette');
+        if (savedPalette) {
+            const p = JSON.parse(savedPalette);
+            applyCssVars(p.accent, p.card, p.light, p.dark, '#c7d5e0');
+        } else {
+            applyCssVars('#66c0f4', '#2a475e', '#1b2838', '#171a21', '#c7d5e0');
+        }
+        document.querySelector('.sidebar').style.backgroundColor = "rgba(17, 20, 25, 0.85)";
+    }
+
+    function updateThemeForSection(filter) {
+        if(filter === 'Educacional') {
+            applyCssVars('#2980b9', '#3498db', '#ffffff', '#ecf0f1', '#2c3e50');
+            document.querySelector('.sidebar').style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+        } else {
+            restoreUserTheme();
+        }
+    }
+
+    function surpriseMe() {
+        sfx.surprise.play().catch(() => {});
+        const games = Array.from(document.querySelectorAll('.game-card'));
+        let availableGames = [];
+        
+        if(currentFilter === 'Educacional') {
+            availableGames = games.filter(g => g.getAttribute('data-genre') === 'Educacional');
+        } else {
+            availableGames = games.filter(g => g.getAttribute('data-genre') !== 'Educacional');
+        }
+
+        if(availableGames.length === 0) availableGames = games; 
+
+        const randomIndex = Math.floor(Math.random() * availableGames.length);
+        const selectedGame = availableGames[randomIndex];
+        
+        selectedGameId = selectedGame.getAttribute('data-id');
+        const gameTitle = selectedGame.querySelector('h3').textContent;
+        selectedGameUrl = selectedGame.querySelector('.play-link').href;
+        
+        games.forEach(g => g.classList.remove('highlight-surprise'));
+        selectedGame.classList.add('highlight-surprise');
+        selectedGame.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(() => {
+            document.getElementById('modalGameTitle').textContent = gameTitle;
+            document.getElementById('surpriseModal').classList.add('active');
+        }, 600);
+    }
+
+    function closeModal() {
+        document.getElementById('surpriseModal').classList.remove('active');
+        document.querySelectorAll('.game-card').forEach(g => g.classList.remove('highlight-surprise'));
+    }
+
+    document.getElementById('btnGoToGame').onclick = () => {
+        recordRecent(selectedGameId);
+        window.open(selectedGameUrl, '_blank');
+        closeModal();
+    };
+
+    function toggleFav(id) {
+        let favs = JSON.parse(localStorage.getItem('favGames') || '[]');
+        favs.includes(id) ? favs = favs.filter(f => f !== id) : favs.push(id);
+        localStorage.setItem('favGames', JSON.stringify(favs));
+        updateFavVisuals();
+        if(currentFilter === 'favorites') filterGames();
+    }
+
+    function updateFavVisuals() {
+        const favs = JSON.parse(localStorage.getItem('favGames') || '[]');
+        document.querySelectorAll('.game-card').forEach(card => {
+            const id = card.getAttribute('data-id');
+            const btn = card.querySelector('.fav-btn');
+            favs.includes(id) ? btn.classList.add('active') : btn.classList.remove('active');
+        });
+    }
+
+    function recordRecent(id) {
+        let recent = JSON.parse(localStorage.getItem('recentGames') || '[]');
+        recent = recent.filter(r => r !== id);
+        recent.unshift(id);
+        if (recent.length > 5) recent.pop();
+        localStorage.setItem('recentGames', JSON.stringify(recent));
+    }
+
+    function setFilter(filter, element) {
+        currentFilter = filter;
+        document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+        if(element) element.classList.add('active');
+        updateThemeForSection(filter);
+        filterGames();
+    }
+
+    function filterGames() {
+        const searchInput = document.getElementById('searchBar').value.toLowerCase();
+        const favs = JSON.parse(localStorage.getItem('favGames') || '[]');
+        const recent = JSON.parse(localStorage.getItem('recentGames') || '[]');
+        const games = document.querySelectorAll('.game-card');
+
+        games.forEach(game => game.classList.add('fade-out'));
+
+        setTimeout(() => {
+            games.forEach(game => {
+                const id = game.getAttribute('data-id');
+                const name = game.getAttribute('data-name').toLowerCase();
+                const genre = game.getAttribute('data-genre');
+                const isEducational = (genre === 'Educacional');
+                
+                let matchesFilter = false;
+
+                if (currentFilter === 'Educacional') {
+                    matchesFilter = isEducational;
+                } else {
+                    if (isEducational) {
+                        matchesFilter = false;
+                    } else {
+                        matchesFilter = (currentFilter === 'all') || 
+                                      (currentFilter === 'favorites' && favs.includes(id)) || 
+                                      (currentFilter === 'recent' && recent.includes(id)) || 
+                                      (genre === currentFilter);
+                    }
+                }
+
+                const matchesSearch = name.includes(searchInput);
+                
+                if (matchesFilter && matchesSearch) {
+                    game.classList.remove('hidden');
+                    game.style.order = (currentFilter === 'recent') ? recent.indexOf(id) : 0;
+                    requestAnimationFrame(() => {
+                        game.classList.remove('fade-out');
+                    });
+                } else {
+                    game.classList.add('hidden');
+                }
+            });
+            initSounds();
+        }, 200);
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    }
+
+    window.onload = () => {
+        updateFavVisuals();
+        initSounds();
+        restoreUserTheme(); 
+        filterGames(); 
+    };
+</script>
+
+</body>
+</html>

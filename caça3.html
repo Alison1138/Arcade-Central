@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAÇA-PALAVRAS COLORIDO</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --bg: #0b0e14;
+            --card-bg: #1a1f29;
+            --text: #e9ecef;
+            --overlay: rgba(0, 0, 0, 0.9);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- BOTÃO SAIR (Igual aos outros jogos) --- */
+        .exit-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+
+        .exit-button {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .exit-button:hover {
+            background: #c0392b;
+        }
+
+        /* --- MODAIS --- */
+        #modal-inicio {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--overlay);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 500px;
+            text-align: center;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 40px rgba(74, 144, 226, 0.2);
+        }
+
+        .tutorial-step {
+            text-align: left;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* --- INTERFACE --- */
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: #161b22;
+            width: 100%;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
+
+        select, button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            background: var(--bg);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover { background: var(--primary); }
+        .btn-reveal { border-color: #f39c12; color: #f39c12; }
+        .btn-reveal:hover { background: #f39c12; color: #000; }
+
+        .game-container {
+            display: flex;
+            gap: 30px;
+            padding: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1300px;
+        }
+
+        #grid {
+            background: #21262d;
+            padding: 10px;
+            border-radius: 8px;
+            display: grid;
+            gap: 2px;
+            user-select: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .cell {
+            width: 32px; height: 32px;
+            background: #161b22;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.9rem; border-radius: 2px;
+            transition: all 0.2s;
+            color: #8b949e;
+        }
+
+        .cell.selected { background: var(--primary) !important; color: white; }
+        
+        .cell.found { color: white !important; }
+
+        .sidebar {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            min-width: 250px;
+        }
+
+        #listaPalavras { 
+            padding: 0; list-style: none; 
+            display: grid; grid-template-columns: 1fr; gap: 8px; 
+        }
+
+        #listaPalavras li {
+            padding: 10px; background: rgba(255,255,255,0.03);
+            border-radius: 6px; font-size: 0.9rem;
+            transition: 0.3s;
+            border-left: 4px solid transparent;
+            font-weight: 500;
+        }
+
+        #listaPalavras li.strikethrough {
+            text-decoration: line-through;
+            opacity: 0.9;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="exit-control">
+    <button class="exit-button" onclick="window.close()">Sair do Jogo</button>
+</div>
+
+<div id="modal-inicio">
+    <div class="modal-content" id="box-escolha">
+        <h2 style="color: var(--primary)">CAÇA-PALAVRAS</h2>
+        <p>Encontre as palavras escondidas no tabuleiro!</p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 25px;">
+            <button onclick="comecarJogo()">INICIAR JOGO</button>
+            <button style="background:none" onclick="mostrarTutorial()">COMO JOGAR?</button>
+        </div>
+    </div>
+
+    <div class="modal-content hidden" id="box-tutorial">
+        <h2 style="color: var(--success)">Tutorial</h2>
+        <div class="tutorial-step"><b>1. Seleção:</b> Arraste o mouse sobre as letras da palavra.</div>
+        <div class="tutorial-step"><b>2. Cores:</b> Cada palavra encontrada ganha uma cor única!</div>
+        <div class="tutorial-step"><b>3. Revelar:</b> Use o botão para ver as palavras que faltam.</div>
+        <button onclick="comecarJogo()" style="width: 100%; margin-top: 10px;">VAMOS LÁ!</button>
+    </div>
+</div>
+
+<div class="header">
+    <h1 style="margin:0; letter-spacing: 3px;"> <span style="color:var(--danger)">CAÇA-PALAVRAS</span></h1>
+    <div class="controls">
+        <select id="nivel">
+            <option value="facil">Fácil (10x10)</option>
+            <option value="medio">Médio (13x13)</option>
+            <option value="dificil">Difícil (16x16)</option>
+            <option value="mestre" selected>MESTRE (20x20)</option>
+        </select>
+        <select id="tema">
+            <option value="astronomia">Astronomia</option>
+            <option value="culinaria">Culinária</option>
+            <option value="profissoes">Profissões</option>
+            <option value="esportes">Esportes</option>
+            <option value="filmes">Filmes & Cinema</option>
+            <option value="tecnologia">Tecnologia</option>
+        </select>
+        <button onclick="novoJogo()">GERAR NOVO JOGO</button>
+        <button class="btn-reveal" onclick="revelarRespostas()">REVELAR RESPOSTAS</button>
+    </div>
+</div>
+
+<div class="game-container">
+    <div id="grid"></div>
+    <div class="sidebar">
+        <h3 style="margin-top:0; border-bottom: 1px solid var(--primary); padding-bottom: 10px;">Palavras:</h3>
+        <ul id="listaPalavras"></ul>
+    </div>
+</div>
+
+<script>
+const bancoDePalavras = {
+    astronomia: ["GALAXIA", "PLANETA", "ESTRELA", "COMETA", "METEORO", "UNIVERSO", "ASTEROIDE", "TELESCOPIO", "ORBITA", "SATURNO", "NEBULOSA", "GRAVIDADE", "COSMOS", "SOLSTICIO", "CONSTELACAO"],
+    culinaria: ["TEMPERO", "PANELA", "RECEITA", "AVENTAL", "FORNO", "BATEDEIRA", "COZINHEIRO", "GASTRONOMIA", "CARDAPIO", "REFEICAO", "SOBREMESA", "INGREDIENTE", "FRIGIDEIRA", "TALHER", "CHURRASCO"],
+    profissoes: ["MEDICO", "ENGENHEIRO", "PROFESSOR", "ADVOGADO", "DENTISTA", "ARQUITETO", "POLICIAL", "BOMBEIRO", "ESCRITOR", "ARTISTA", "PROGRAMADOR", "PSICOLOGO", "CIENTISTA", "VETERINARIO", "PILOTO"],
+    esportes: ["FUTEBOL", "BASQUETE", "VOLEI", "NATACAO", "CORRIDA", "TENIS", "ATLETISMO", "GINASTICA", "CICLISMO", "JUDO", "KARATE", "SURFE", "ESGRIMA", "HANDEBOL", "ALPINISMO"],
+    filmes: ["CINEMA", "ROTEIRO", "ATOR", "DIRETOR", "CAMERA", "BILHETERIA", "OSCAR", "SUSPENSE", "COMEDIA", "DRAMA", "ANIMACAO", "DOCUMENTARIO", "PRODUCAO", "ESTREIA", "FIGURINO"],
+    tecnologia: ["ALGORITMO", "SOFTWARE", "HARDWARE", "INTERNET", "ROBOTICA", "SERVIDOR", "CRIPTOGRAFIA", "PROGRAMA", "SISTEMA", "CELULAR", "COMPUTADOR", "INOVACAO", "VIRTUAL", "CONEXAO", "DATABASE"]
+};
+
+const coresPalavras = [
+    "#FF5733", "#33FF57", "#3357FF", "#F39C12", "#9B59B6", 
+    "#1ABC9C", "#E74C3C", "#3498DB", "#F1C40F", "#FF69B4",
+    "#00FA9A", "#FF4500", "#ADFF2F", "#00CED1", "#FFD700"
+];
+
+const configNiveis = {
+    facil: { tam: 10, qtd: 10 },
+    medio: { tam: 13, qtd: 10 },
+    dificil: { tam: 16, qtd: 12 },
+    mestre: { tam: 20, qtd: 15 }
+};
+
+let grid = [], selecionando = false, selecionadas = [], posicoesRespostas = [], inicioSelecao = null;
+
+function mostrarTutorial() {
+    document.getElementById('box-escolha').classList.add('hidden');
+    document.getElementById('box-tutorial').classList.remove('hidden');
+}
+
+function comecarJogo() {
+    document.getElementById('modal-inicio').classList.add('hidden');
+    novoJogo();
+}
+
+function novoJogo() {
+    const nivel = document.getElementById("nivel").value;
+    const tema = document.getElementById("tema").value;
+    const config = configNiveis[nivel];
+    
+    grid = Array.from({length: config.tam}, () => Array(config.tam).fill(""));
+    posicoesRespostas = [];
+
+    let candidatas = [...bancoDePalavras[tema]].filter(p => p.length <= config.tam).sort(() => Math.random() - 0.5);
+
+    let corIndex = 0;
+    for (let p of candidatas) {
+        if (posicoesRespostas.length < config.qtd) {
+            let palavraLimpa = p.replace(/\s/g, '');
+            if (posicionarPalavra(palavraLimpa, coresPalavras[corIndex % coresPalavras.length])) {
+                corIndex++;
+            }
+        }
+    }
+    preencherAleatorio();
+    desenhar();
+}
+
+function posicionarPalavra(palavra, cor) {
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+    let tent = 0;
+    while(tent < 500) {
+        const d = dirs[Math.floor(Math.random()*dirs.length)];
+        const x = Math.floor(Math.random()*grid.length);
+        const y = Math.floor(Math.random()*grid.length);
+        if(validarEspaco(palavra, x, y, d)) {
+            let coords = [];
+            for(let i=0; i<palavra.length; i++) {
+                let ny = y + d[1]*i, nx = x + d[0]*i;
+                grid[ny][nx] = palavra[i];
+                coords.push({y: ny, x: nx});
+            }
+            posicoesRespostas.push({palavra, coords, cor, achada: false});
+            return true;
+        }
+        tent++;
+    }
+    return false;
+}
+
+function validarEspaco(p, x, y, d) {
+    for(let i=0; i<p.length; i++) {
+        const nx = x + d[0]*i, ny = y + d[1]*i;
+        if(ny<0 || ny>=grid.length || nx<0 || nx>=grid.length) return false;
+        if(grid[ny][nx] !== "" && grid[ny][nx] !== p[i]) return false;
+    }
+    return true;
+}
+
+function preencherAleatorio() {
+    for(let y=0; y<grid.length; y++)
+        for(let x=0; x<grid.length; x++)
+            if(grid[y][x] === "") grid[y][x] = String.fromCharCode(65 + Math.floor(Math.random()*26));
+}
+
+function desenhar() {
+    const container = document.getElementById("grid");
+    container.innerHTML = "";
+    container.style.gridTemplateColumns = `repeat(${grid.length}, auto)`;
+    grid.forEach((row, y) => {
+        row.forEach((letra, x) => {
+            const div = document.createElement("div");
+            div.className = "cell";
+            div.textContent = letra;
+            div.dataset.y = y; div.dataset.x = x;
+            div.onmousedown = () => { selecionando = true; inicioSelecao = {y, x}; atualizarSelecao(div); };
+            div.onmouseover = () => { if(selecionando) atualizarSelecao(div); };
+            container.appendChild(div);
+        });
+    });
+
+    const lista = document.getElementById("listaPalavras");
+    lista.innerHTML = "";
+    posicoesRespostas.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.textContent = item.palavra;
+        li.id = "word-item-" + index;
+        lista.appendChild(li);
+    });
+}
+
+function atualizarSelecao(el) {
+    const fimY = parseInt(el.dataset.y), fimX = parseInt(el.dataset.x);
+    const iniY = inicioSelecao.y, iniX = inicioSelecao.x;
+    const diffY = fimY - iniY, diffX = fimX - iniX;
+    if (diffY !== 0 && diffX !== 0 && Math.abs(diffY) !== Math.abs(diffX)) return;
+    
+    document.querySelectorAll(".cell.selected").forEach(c => c.classList.remove("selected"));
+    selecionadas = [];
+    
+    let stepY = diffY === 0 ? 0 : diffY / Math.abs(diffY);
+    let stepX = diffX === 0 ? 0 : diffX / Math.abs(diffX);
+    let currY = iniY, currX = iniX;
+    
+    while (true) {
+        const cell = document.querySelector(`.cell[data-y="${currY}"][data-x="${currX}"]`);
+        if (cell) { cell.classList.add("selected"); selecionadas.push(cell); }
+        if (currY === fimY && currX === fimX) break;
+        currY += stepY; currX += stepX;
+        if (Math.abs(currY - iniY) > grid.length || Math.abs(currX - iniX) > grid.length) break;
+    }
+}
+
+document.onmouseup = () => {
+    if(!selecionando) return;
+    const sel = selecionadas.map(c => c.textContent).join("");
+    const inv = sel.split("").reverse().join("");
+    
+    posicoesRespostas.forEach((item, i) => {
+        if((item.palavra === sel || item.palavra === inv) && !item.achada) {
+            item.achada = true;
+            selecionadas.forEach(c => {
+                c.classList.remove("selected");
+                c.classList.add("found");
+                c.style.backgroundColor = item.cor;
+            });
+            const li = document.getElementById("word-item-" + i);
+            li.classList.add("strikethrough");
+            li.style.color = item.cor;
+            li.style.borderLeftColor = item.cor;
+        }
+    });
+    document.querySelectorAll(".cell.selected").forEach(c => c.classList.remove("selected"));
+    selecionando = false;
+    checkWin();
+};
+
+function revelarRespostas() {
+    posicoesRespostas.forEach((item, i) => {
+        if(!item.achada) {
+            item.coords.forEach(coord => {
+                const celula = document.querySelector(`.cell[data-y="${coord.y}"][data-x="${coord.x}"]`);
+                if(celula) {
+                    celula.style.backgroundColor = item.cor + "44"; 
+                    celula.style.color = item.cor;
+                    celula.style.border = `1px solid ${item.cor}`;
+                }
+            });
+            const li = document.getElementById("word-item-" + i);
+            li.style.color = item.cor;
+            li.style.borderLeftColor = item.cor;
+            li.classList.add("strikethrough");
+        }
+    });
+}
+
+function checkWin() {
+    if(posicoesRespostas.every(p => p.achada)) {
+        setTimeout(() => alert("PARABÉNS! Você completou o desafio!"), 200);
+    }
+}
+</script>
+</body>
+</html>

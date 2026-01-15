@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Equilibrado</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.8rem;
+        }
+
+        /* TELA DE INSTRUÇÕES (OVERLAY) */
+        #instructions-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .modal h2 { margin-top: 0; color: #0d6efd; }
+        .modal ul { text-align: left; margin: 20px 0; line-height: 1.6; }
+        
+        .btn-start {
+            background-color: #0d6efd;
+            padding: 10px 25px;
+            font-size: 16px;
+        }
+
+        .game-container {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .top-controls {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select {
+            padding: 6px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #sudoku-board {
+            display: grid;
+            grid-template-columns: repeat(9, 37px);
+            grid-template-rows: repeat(9, 37px);
+            border: 2px solid #222;
+            background-color: #222;
+            gap: 1px;
+        }
+
+        input {
+            width: 37px;
+            height: 37px;
+            text-align: center;
+            font-size: 19px;
+            border: none;
+            outline: none;
+            background-color: white;
+            color: #333;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        input.fixed {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            color: #000;
+        }
+
+        /* Bordas dos blocos 3x3 */
+        input:nth-child(3n) { border-right: 2px solid #222; }
+        input:nth-child(9n) { border-right: none; }
+        .bottom-border { border-bottom: 2px solid #222 !important; }
+
+        input.correct { background-color: #d1e7dd; color: #0f5132; }
+        input.wrong { background-color: #f8d7da; color: #842029; }
+
+        .controls {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .exit-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        
+        button:active { transform: scale(0.95); }
+        .btn-new { background-color: #198754; }
+        .btn-check { background-color: #0d6efd; }
+        .btn-solve { background-color: #6c757d; }
+        .btn-exit { background-color: #dc3545; }
+
+        #message {
+            margin-top: 12px;
+            height: 20px;
+            font-size: 15px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="exit-container">
+        <button class="btn-exit" onclick="window.close()">Sair</button>
+    </div>
+
+    <div id="instructions-overlay">
+        <div class="modal">
+            <h2>Como Jogar</h2>
+            <ul>
+                <li>Preencha cada linha, coluna e bloco 3x3 com números de <b>1 a 9</b>.</li>
+                <li>Não pode haver números repetidos na mesma linha, coluna ou bloco.</li>
+                <li>Os números em <b>negrito</b> são fixos.</li>
+                <li>Use o botão <b>Verificar</b> para validar seus acertos.</li>
+            </ul>
+            <button class="btn-start" onclick="closeInstructions()">Entendido!</button>
+        </div>
+    </div>
+
+    <h1>Sudoku</h1>
+
+    <div class="game-container">
+        <div class="top-controls">
+            <select id="difficulty">
+                <option value="30">Fácil</option>
+                <option value="42" selected>Médio</option>
+                <option value="52">Difícil</option>
+                <option value="62">Insano</option>
+            </select>
+            <button class="btn-new" onclick="newGame()">Novo Jogo</button>
+        </div>
+
+        <div id="sudoku-board"></div>
+
+        <div class="controls">
+            <button class="btn-check" onclick="checkGame()">Verificar</button>
+            <button class="btn-solve" onclick="giveUp()">Resolver</button>
+        </div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        let solutionBoard = [];
+        let currentBoard = [];
+
+        function closeInstructions() {
+            document.getElementById('instructions-overlay').style.display = 'none';
+        }
+
+        function newGame() {
+            const difficulty = parseInt(document.getElementById('difficulty').value);
+            generateSudoku(difficulty);
+            createBoardUI();
+            document.getElementById('message').innerText = "";
+        }
+
+        function generateSudoku(removeCount) {
+            let board = Array.from({ length: 9 }, () => Array(9).fill(0));
+            fillDiagonalBoxes(board);
+            solveSudoku(board);
+            solutionBoard = board.flat();
+            removeDigits(board, removeCount);
+            currentBoard = board.flat();
+        }
+
+        function fillDiagonalBoxes(board) {
+            for (let i = 0; i < 9; i = i + 3) fillBox(board, i, i);
+        }
+
+        function fillBox(board, row, col) {
+            let num;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    do { num = Math.floor(Math.random() * 9) + 1; } 
+                    while (!isSafeInBox(board, row, col, num));
+                    board[row + i][col + j] = num;
+                }
+            }
+        }
+
+        function isSafeInBox(board, rowStart, colStart, num) {
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (board[rowStart + i][colStart + j] === num) return false;
+                }
+            }
+            return true;
+        }
+
+        function isSafe(board, row, col, num) {
+            for (let x = 0; x < 9; x++) if (board[row][x] === num || board[x][col] === num) return false;
+            return isSafeInBox(board, row - row % 3, col - col % 3, num);
+        }
+
+        function solveSudoku(board) {
+            let row = -1, col = -1, isEmpty = true;
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (board[i][j] === 0) { row = i; col = j; isEmpty = false; break; }
+                }
+                if (!isEmpty) break;
+            }
+            if (isEmpty) return true;
+            for (let num = 1; num <= 9; num++) {
+                if (isSafe(board, row, col, num)) {
+                    board[row][col] = num;
+                    if (solveSudoku(board)) return true;
+                    board[row][col] = 0;
+                }
+            }
+            return false;
+        }
+
+        function removeDigits(board, count) {
+            while (count > 0) {
+                let cellId = Math.floor(Math.random() * 81);
+                let i = Math.floor(cellId / 9), j = cellId % 9;
+                if (board[i][j] !== 0) { board[i][j] = 0; count--; }
+            }
+        }
+
+        function createBoardUI() {
+            const boardElement = document.getElementById('sudoku-board');
+            boardElement.innerHTML = '';
+            currentBoard.forEach((num, index) => {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.dataset.index = index;
+                const row = Math.floor(index / 9);
+                
+                // Adiciona borda inferior nos blocos 3x3
+                if (row === 2 || row === 5) input.classList.add('bottom-border');
+
+                if (num !== 0) {
+                    input.value = num;
+                    input.readOnly = true;
+                    input.classList.add('fixed');
+                } else {
+                    input.addEventListener('input', (e) => {
+                        const val = e.target.value.replace(/[^1-9]/g, '');
+                        e.target.value = val.charAt(0);
+                        input.classList.remove('correct', 'wrong');
+                    });
+                }
+                boardElement.appendChild(input);
+            });
+        }
+
+        function checkGame() {
+            const inputs = document.querySelectorAll('#sudoku-board input');
+            let isComplete = true, hasErrors = false;
+            inputs.forEach((input, index) => {
+                const userVal = parseInt(input.value);
+                if (!userVal) isComplete = false;
+                else if (!input.readOnly) {
+                    if (userVal === solutionBoard[index]) input.classList.add('correct');
+                    else { input.classList.add('wrong'); hasErrors = true; }
+                }
+            });
+            const msg = document.getElementById('message');
+            if (hasErrors) { msg.innerText = "Há erros no tabuleiro!"; msg.style.color = "#842029"; }
+            else if (isComplete) { msg.innerText = "Excelente! Você completou!"; msg.style.color = "#0f5132"; }
+            else { msg.innerText = "Tudo certo até agora!"; msg.style.color = "#0d6efd"; }
+        }
+
+        function giveUp() {
+            const inputs = document.querySelectorAll('#sudoku-board input');
+            inputs.forEach((input, index) => {
+                input.value = solutionBoard[index];
+                if(!input.readOnly) {
+                    input.classList.remove('wrong');
+                    input.classList.add('correct');
+                }
+            });
+            document.getElementById('message').innerText = "Solução revelada.";
+        }
+
+        newGame();
+    </script>
+</body>
+</html>

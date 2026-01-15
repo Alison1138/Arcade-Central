@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Pong Evolution - Tutorial Edition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&display=swap');
+
+  body {
+    margin: 0;
+    font-family: 'Roboto Mono', monospace;
+    background: #0a0a0a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  #menu, #tutorialOverlay { 
+    text-align: center; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    align-items: center; 
+    position: absolute;
+  }
+
+  /* Estilo do Tutorial */
+  #tutorialOverlay {
+    display: none;
+    background: rgba(0, 0, 0, 0.95);
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    z-index: 10;
+  }
+
+  .tutorial-box {
+    background: #1a1a1a;
+    padding: 30px;
+    border-radius: 20px;
+    border: 2px solid #444;
+    max-width: 400px;
+  }
+
+  #infoPanel {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    width: 320px;
+    margin-bottom: 10px;
+  }
+
+  .menu-card {
+    width: 260px;
+    background: #222;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    border: 1px solid #444;
+    font-size: 14px;
+  }
+
+  .selected { border-color: #fff !important; background: #444 !important; }
+
+  canvas {
+    display: none;
+    background-color: #000;
+    border: 4px solid #333;
+  }
+
+  #gameButtons { position: absolute; top: 10px; display: none; gap: 10px; }
+  .gameBtn { padding: 8px 15px; border-radius: 5px; background: #444; color: #fff; border: none; cursor: pointer; }
+  
+  .key-hint {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #444;
+    border-radius: 4px;
+    margin: 2px;
+    border-bottom: 2px solid #222;
+  }
+</style>
+</head>
+<body>
+
+<div id="tutorialOverlay">
+  <div class="tutorial-box">
+    <h2 style="color: #00d4ff;">COMO JOGAR</h2>
+    <div style="text-align: left; margin-bottom: 20px;">
+      <p><strong>MOVIMENTAÇÃO:</strong></p>
+      <p>🟦 Jogador 1: <span class="key-hint">W</span> (Cima) / <span class="key-hint">S</span> (Baixo)</p>
+      <p>🟥 Jogador 2: <span class="key-hint">↑</span> (Cima) / <span class="key-hint">↓</span> (Baixo)</p>
+      <hr style="border: 0; border-top: 1px solid #333;">
+      <p><strong>REGRAS:</strong></p>
+      <p>• O primeiro a fazer 5 pontos vence.</p>
+      <p>• Ganhar partidas sobe seu <strong>Nível</strong>.</p>
+      <p>• A dificuldade muda a cor e a velocidade!</p>
+    </div>
+    <div class="menu-card" onclick="closeTutorial()" style="background: #28a745; width: auto; font-weight: bold;">ENTENDI!</div>
+  </div>
+</div>
+
+<div id="menu">
+  <h1>PONG EVOLUTION</h1>
+  <div id="infoPanel">
+    <div id="displayLevel" style="color:#ffd700; font-size: 20px;">Nível: 1</div>
+    <div id="statWins" style="font-size: 11px; color: #888;">Vitórias: 0 | Derrotas: 0</div>
+  </div>
+
+  <div class="menu-card" onclick="openTutorial()" style="background: #444; font-size: 12px; width: 150px;">❔ AJUDA / TUTORIAL</div>
+
+  <p style="font-size: 11px; color: #555; margin: 5px 0 0 0;">MODO</p>
+  <div style="display: flex; gap: 8px;">
+    <div id="mode-solo" class="menu-card" style="width: 120px;" onclick="setMode('solo')">Contra IA</div>
+    <div id="mode-1x1" class="menu-card" style="width: 120px;" onclick="setMode('1x1')">1x1 Local</div>
+  </div>
+
+  <p style="font-size: 11px; color: #555; margin: 5px 0 0 0;">DIFICULDADE</p>
+  <div style="display: flex; gap: 8px;">
+    <div id="diff-easy" class="menu-card" style="width: 80px; color: #2ecc71;" onclick="setDifficulty('easy')">Fácil</div>
+    <div id="diff-med" class="menu-card" style="width: 80px; color: #00d4ff;" onclick="setDifficulty('medium')">Médio</div>
+    <div id="diff-hard" class="menu-card" style="width: 80px; color: #ff2e63;" onclick="setDifficulty('hard')">Difícil</div>
+  </div>
+
+  <div class="menu-card" id="playBtn" onclick="startGame()" style="background:#fff; color:#000; margin-top: 15px; font-weight: bold; display: none;">INICIAR</div>
+  
+  <div class="menu-card" onclick="exitGame()" style="background: #333; color: #ff4d4d; margin-top: 5px; font-weight: bold; width: 100px; font-size: 12px;">SAIR</div>
+</div>
+
+<canvas id="game" width="700" height="400"></canvas>
+<div id="gameButtons"><button class="gameBtn" onclick="returnMenu()">Sair</button></div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const menu = document.getElementById("menu");
+
+let ball, player1, player2, gameRunning = false;
+let speedMultiplier = 1, maxScore = 5, gameMode = null;
+let keys = { w:false, s:false, up:false, down:false };
+let countdown = 3, countdownActive = true, speedFactor = 1, aiSpeed = 0.06;
+let difficultyColor = "#4caf50";
+let ballHistory = []; // Para o efeito de rastro
+
+let stats = JSON.parse(localStorage.getItem('pong_stats')) || { level: 1, wins: 0, losses: 0, firstTime: true };
+
+// SISTEMA DE TUTORIAL
+if(stats.firstTime) {
+    document.getElementById('tutorialOverlay').style.display = 'flex';
+}
+
+function openTutorial() { document.getElementById('tutorialOverlay').style.display = 'flex'; }
+function closeTutorial() { 
+    document.getElementById('tutorialOverlay').style.display = 'none';
+    stats.firstTime = false;
+    localStorage.setItem('pong_stats', JSON.stringify(stats));
+}
+
+function updateUI() {
+    document.getElementById("displayLevel").innerText = `Nível: ${stats.level}`;
+    document.getElementById("statWins").innerText = `Vitórias: ${stats.wins} | Derrotas: ${stats.losses}`;
+}
+
+function setMode(m) {
+    gameMode = m;
+    document.getElementById('mode-solo').classList.remove('selected');
+    document.getElementById('mode-1x1').classList.remove('selected');
+    document.getElementById('mode-' + m).classList.add('selected');
+    if(speedMultiplier && speedMultiplier !== 1) { // Verifica se dificuldade foi selecionada
+         document.getElementById("playBtn").style.display = 'block';
+    } else if (document.querySelector('.selected[id^="diff-"]')) {
+         document.getElementById("playBtn").style.display = 'block';
+    }
+}
+
+function setDifficulty(d) {
+    document.getElementById('diff-easy').classList.remove('selected');
+    document.getElementById('diff-med').classList.remove('selected');
+    document.getElementById('diff-hard').classList.remove('selected');
+    if(d === 'easy') { speedMultiplier = 0.7; aiSpeed = 0.04; difficultyColor = "#2ecc71"; document.getElementById('diff-easy').classList.add('selected'); }
+    if(d === 'medium') { speedMultiplier = 1.0; aiSpeed = 0.07; difficultyColor = "#00d4ff"; document.getElementById('diff-med').classList.add('selected'); }
+    if(d === 'hard') { speedMultiplier = 1.5; aiSpeed = 0.12; difficultyColor = "#ff2e63"; document.getElementById('diff-hard').classList.add('selected'); }
+    if(gameMode) document.getElementById("playBtn").style.display = 'block';
+}
+
+function startGame() {
+    menu.style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById("gameButtons").style.display = 'flex';
+    player1 = { x: 15, y: 160, width: 12, height: 80, score: 0 };
+    player2 = { x: 673, y: 160, width: 12, height: 80, score: 0 };
+    resetBall();
+    gameRunning = true;
+    gameLoop();
+}
+
+function resetBall() {
+    speedFactor = 1;
+    ball = { x: 350, y: 200, radius: 8 };
+    ball.speedX = (5 * speedMultiplier) * (Math.random() > 0.5 ? 1 : -1);
+    ball.speedY = (3 * speedMultiplier) * (Math.random() > 0.5 ? 1 : -1);
+    ballHistory = [];
+    countdown = 3; countdownActive = true;
+    let t = setInterval(() => { countdown--; if(countdown <= 0){ clearInterval(t); countdownActive=false; } }, 1000);
+}
+
+// FUNÇÃO DE SAIR (IGUAL AOS OUTROS JOGOS)
+function exitGame() {
+    window.close();
+}
+
+document.addEventListener("keydown", e => {
+    if(e.code==="KeyW") keys.w=true; if(e.code==="KeyS") keys.s=true;
+    if(e.code==="ArrowUp") keys.up=true; if(e.code==="ArrowDown") keys.down=true;
+});
+document.addEventListener("keyup", e => {
+    if(e.code==="KeyW") keys.w=false; if(e.code==="KeyS") keys.s=false;
+    if(e.code==="ArrowUp") keys.up=false; if(e.code==="ArrowDown") keys.down=false;
+});
+
+function drawTrail() {
+    for (let i = 0; i < ballHistory.length; i++) {
+        let pos = ballHistory[i];
+        let opacity = (i + 1) / ballHistory.length;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, ball.radius * opacity, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.3})`;
+        ctx.fill();
+    }
+}
+
+function update() {
+    if(countdownActive) return;
+    
+    // Rastro: salva posição atual
+    ballHistory.push({x: ball.x, y: ball.y});
+    if(ballHistory.length > 6) ballHistory.shift();
+
+    if(keys.w && player1.y > 0) player1.y -= 7;
+    if(keys.s && player1.y < 320) player1.y += 7;
+    if(gameMode === '1x1') {
+        if(keys.up && player2.y > 0) player2.y -= 7;
+        if(keys.down && player2.y < 320) player2.y += 7;
+    } else {
+        player2.y += (ball.y - (player2.y + 40)) * aiSpeed;
+    }
+    
+    ball.x += ball.speedX * speedFactor;
+    ball.y += ball.speedY * speedFactor;
+    speedFactor += 0.0006;
+
+    if(ball.y <= 0 || ball.y >= 400) ball.speedY *= -1;
+    if(ball.x - ball.radius < player1.x + player1.width && ball.y > player1.y && ball.y < player1.y + 80) {
+        if(ball.speedX < 0) { ball.speedX *= -1.05; ball.x = player1.x + player1.width + ball.radius; }
+    }
+    if(ball.x + ball.radius > player2.x && ball.y > player2.y && ball.y < player2.y + 80) {
+        if(ball.speedX > 0) { ball.speedX *= -1.05; ball.x = player2.x - ball.radius; }
+    }
+    if(ball.x < 0) { player2.score++; resetBall(); }
+    if(ball.x > 700) { player1.score++; resetBall(); }
+    if(player1.score >= maxScore || player2.score >= maxScore) {
+        if(player1.score >= maxScore) { stats.wins++; stats.level++; } else { stats.losses++; }
+        localStorage.setItem('pong_stats', JSON.stringify(stats));
+        alert(player1.score >= maxScore ? "VITÓRIA!" : "DERROTA!"); returnMenu();
+    }
+}
+
+function draw() {
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 700, 400);
+    
+    // Placar
+    ctx.font = "20px 'Roboto Mono'"; ctx.textAlign = "center";
+    ctx.fillStyle = difficultyColor; ctx.fillRect(canvas.width/2 - 90, 10, 80, 35);
+    ctx.fillStyle = "#000"; ctx.fillText(player1.score, canvas.width/2 - 50, 35);
+    ctx.fillStyle = difficultyColor; ctx.globalAlpha = 0.6; ctx.fillRect(canvas.width/2 + 10, 10, 80, 35);
+    ctx.globalAlpha = 1.0; ctx.fillStyle = "#000"; ctx.fillText(player2.score, canvas.width/2 + 50, 35);
+    
+    drawTrail(); // Chama o rastro da bola
+    
+    ctx.fillStyle = difficultyColor; ctx.fillRect(player1.x, player1.y, player1.width, 80);
+    ctx.fillRect(player2.x, player2.y, player2.width, 80);
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2); ctx.fillStyle = "#fff"; ctx.fill();
+    
+    if(countdownActive) {
+        ctx.fillStyle = "#fff"; ctx.font = "40px 'Roboto Mono'";
+        ctx.fillText(countdown > 0 ? countdown : "GO!", 350, 200);
+    }
+}
+
+function gameLoop() { if(gameRunning){ update(); draw(); requestAnimationFrame(gameLoop); } }
+function returnMenu() { gameRunning = false; canvas.style.display = 'none'; document.getElementById("gameButtons").style.display = 'none'; menu.style.display = 'flex'; updateUI(); }
+updateUI();
+</script>
+</body>
+</html>

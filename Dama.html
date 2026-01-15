@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CheckersMaster Pro | Edição Definitiva</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f1c40f;
+            --bg: #0b0e14;
+            --board-dark: #1a1f29;
+            --board-light: #2c3440;
+            --text: #e9ecef;
+            --overlay: rgba(0, 0, 0, 0.9);
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- MODAIS --- */
+        #modal-inicio, #modal-vitoria {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--overlay);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #161b22;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 450px;
+            text-align: center;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 40px rgba(74, 144, 226, 0.2);
+        }
+
+        /* --- INTERFACE --- */
+        .header {
+            text-align: center;
+            padding: 15px;
+            background: #161b22;
+            width: 100%;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .controls { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+
+        .scoreboard {
+            display: flex;
+            gap: 30px;
+            margin: 20px 0;
+            background: #1c2128;
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 2px solid transparent;
+            transition: 0.3s;
+        }
+
+        .score-item { display: flex; flex-direction: column; align-items: center; gap: 5px; font-weight: bold; min-width: 80px;}
+        .score-val { font-size: 1.5rem; }
+
+        .turn-active-blue { border-color: var(--primary); box-shadow: 0 0 15px rgba(74, 144, 226, 0.3); }
+        .turn-active-red { border-color: var(--danger); box-shadow: 0 0 15px rgba(231, 76, 60, 0.3); }
+
+        select, button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            background: var(--bg);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 55px);
+            grid-template-rows: repeat(8, 55px);
+            border: 8px solid #161b22;
+            box-shadow: 0 0 50px rgba(0,0,0,0.7);
+        }
+
+        .square { width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .square.dark { background-color: var(--board-dark); }
+        .square.light { background-color: var(--board-light); }
+        .square.available::after {
+            content: ''; width: 18px; height: 18px; background: rgba(46, 204, 113, 0.6); border-radius: 50%;
+        }
+
+        .piece {
+            width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .piece.red { background: linear-gradient(145deg, #ff4d4d, #b30000); box-shadow: 0 4px #800000; }
+        .piece.blue { background: linear-gradient(145deg, #4da6ff, #0052cc); box-shadow: 0 4px #003d99; }
+        .piece.selected { transform: scale(1.18); box-shadow: 0 0 20px white; z-index: 100; border: 2px solid #fff; }
+        .piece.king::after { content: '👑'; font-size: 20px; text-shadow: 0 0 5px gold; }
+
+        .hidden { display: none !important; }
+        .status-msg { margin: 15px; font-weight: bold; color: var(--warning); letter-spacing: 1px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+<div class="controls">
+    <select id="dificuldade" onchange="resetGame()">
+        <option value="facil">FÁCIL</option>
+        <option value="medio">MÉDIO</option>
+    </select>
+    <button onclick="resetGame()">REINICIAR</button>
+    <button onclick="window.close()" style="border-color: #e74c3c; color: #e74c3c;">SAIR</button>
+</div>
+
+<div id="modal-inicio">
+    <div class="modal-content" id="box-escolha">
+        <h2 style="color: var(--primary)">CHECKERS MASTER</h2>
+        <p>Prepare sua estratégia para vencer!</p>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 25px;">
+            <button onclick="comecarJogo()">INICIAR JOGO</button>
+            <button style="background:none; border-color: #555" onclick="mostrarTutorial()">COMO JOGAR?</button>
+        </div>
+    </div>
+
+    <div class="modal-content hidden" id="box-tutorial">
+        <h2>Regras Rápidas</h2>
+        <ul style="text-align: left; line-height: 1.6; font-size: 0.9rem;">
+            <li>Mova em <b>diagonal</b> nas casas escuras.</li>
+            <li>Pule sobre uma peça inimiga para capturá-la.</li>
+            <li>Se puder capturar outra peça em sequência, você <b>continua jogando</b>.</li>
+            <li>Chegue ao fim para virar <b>Dama (👑)</b>.</li>
+            <li>Vence quem capturar tudo ou bloquear o oponente.</li>
+        </ul>
+        <button onclick="comecarJogo()">VAMOS JOGAR!</button>
+    </div>
+</div>
+
+<div id="modal-vitoria" class="hidden">
+    <div class="modal-content" id="vitoria-body">
+        <h1 id="vitoria-titulo"></h1>
+        <p id="vitoria-msg"></p>
+        <button onclick="resetGame()">JOGAR NOVAMENTE</button>
+    </div>
+</div>
+
+<div class="header">
+    <h1 style="margin:0">CHECKERS <span style="color:var(--primary)">PRO</span></h1>
+    <div class="controls">
+        <select id="gameMode" onchange="resetGame()">
+            <option value="cpu">Vs Computador</option>
+            <option value="pvp">Dois Jogadores</option>
+        </select>
+        <select id="diff">
+            <option value="facil">Nível: Fácil</option>
+            <option value="medio">Nível: Médio</option>
+            <option value="mestre" selected>Nível: MESTRE</option>
+        </select>
+        <button onclick="resetGame()">REINICIAR</button>
+    </div>
+</div>
+
+<div class="scoreboard" id="scorePanel">
+    <div class="score-item">
+        <span style="color:var(--primary)">AZUL</span>
+        <span class="score-val" id="p-score">0</span>
+    </div>
+    <div style="font-size: 1.5rem; opacity: 0.3;">X</div>
+    <div class="score-item">
+        <span id="labelRed" style="color:var(--danger)">CPU</span>
+        <span class="score-val" id="c-score">0</span>
+    </div>
+</div>
+
+<div class="status-msg" id="status-msg">Turno do Azul</div>
+<div id="board"></div>
+
+<script>
+    const size = 8;
+    let grid = [];
+    let turn = 'blue'; 
+    let sel = null;
+    let moves = [];
+    let pScore = 0;
+    let cScore = 0;
+    let multiJump = false; // Flag para capturas múltiplas
+
+    function mostrarTutorial() {
+        document.getElementById('box-escolha').classList.add('hidden');
+        document.getElementById('box-tutorial').classList.remove('hidden');
+    }
+
+    function comecarJogo() {
+        document.getElementById('modal-inicio').classList.add('hidden');
+        init();
+    }
+
+    function init() {
+        const mode = document.getElementById('gameMode').value;
+        document.getElementById('labelRed').textContent = mode === 'pvp' ? 'VERMELHO' : 'CPU';
+        document.getElementById('diff').style.display = mode === 'cpu' ? 'inline-block' : 'none';
+        document.getElementById('modal-vitoria').classList.add('hidden');
+        
+        grid = Array.from({ length: size }, () => Array(size).fill(null));
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if ((r + c) % 2 !== 0) {
+                    if (r < 3) grid[r][c] = { color: 'red', king: false };
+                    else if (r > 4) grid[r][c] = { color: 'blue', king: false };
+                }
+            }
+        }
+        updateUI();
+        render();
+    }
+
+    function updateUI() {
+        const panel = document.getElementById('scorePanel');
+        panel.className = 'scoreboard ' + (turn === 'blue' ? 'turn-active-blue' : 'turn-active-red');
+        document.getElementById('p-score').textContent = pScore;
+        document.getElementById('c-score').textContent = cScore;
+        document.getElementById('status-msg').textContent = multiJump ? "Salto Múltiplo!" : `Turno do ${turn === 'blue' ? 'Azul' : 'Vermelho'}`;
+    }
+
+    function render() {
+        const boardEl = document.getElementById('board');
+        boardEl.innerHTML = '';
+        grid.forEach((row, r) => {
+            row.forEach((cell, c) => {
+                const sq = document.createElement('div');
+                sq.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
+                
+                const m = moves.find(move => move.r === r && move.c === c);
+                if (m) {
+                    sq.classList.add('available');
+                    sq.onclick = () => executeMove(m);
+                }
+
+                if (cell) {
+                    const pc = document.createElement('div');
+                    pc.className = `piece ${cell.color} ${cell.king ? 'king' : ''}`;
+                    if (sel && sel.r === r && sel.c === c) pc.classList.add('selected');
+                    // Bloqueia clique se for a vez do outro (e se não estiver em multi-jump)
+                    if (cell.color === turn && !multiJump) pc.onclick = () => select(r, c);
+                    sq.appendChild(pc);
+                }
+                boardEl.appendChild(sq);
+            });
+        });
+    }
+
+    function select(r, c) {
+        sel = { r, c };
+        moves = getMoves(r, c);
+        render();
+    }
+
+    function getMoves(r, c, onlyCaptures = false) {
+        const p = grid[r][c];
+        const m = [];
+        const ds = p.king ? [[1,1],[1,-1],[-1,1],[-1,-1]] : (p.color === 'blue' ? [[-1,1],[-1,-1]] : [[1,1],[1,-1]]);
+
+        ds.forEach(d => {
+            if (!onlyCaptures) {
+                let nr = r + d[0], nc = c + d[1];
+                if (nr>=0 && nr<size && nc>=0 && nc<size && !grid[nr][nc]) m.push({r: nr, c: nc});
+            }
+            let jr = r + d[0]*2, jc = c + d[1]*2;
+            let mr = r + d[0], mc = c + d[1];
+            if (jr>=0 && jr<size && jc>=0 && jc<size && !grid[jr][jc] && grid[mr][mc] && grid[mr][mc].color !== p.color) {
+                m.push({r: jr, c: jc, cap: {r: mr, c: mc}});
+            }
+        });
+        return m;
+    }
+
+    function executeMove(m) {
+        const p = grid[sel.r][sel.c];
+        grid[m.r][m.c] = p;
+        grid[sel.r][sel.c] = null;
+        
+        let captured = false;
+        if (m.cap) {
+            grid[m.cap.r][m.cap.c] = null;
+            if (turn === 'blue') pScore++; else cScore++;
+            captured = true;
+        }
+
+        // Promoção a Dama
+        if ((p.color === 'blue' && m.r === 0) || (p.color === 'red' && m.r === size-1)) p.king = true;
+
+        // Lógica de Salto Múltiplo
+        if (captured) {
+            const nextCaptures = getMoves(m.r, m.c, true);
+            if (nextCaptures.length > 0) {
+                multiJump = true;
+                sel = { r: m.r, c: m.c };
+                moves = nextCaptures;
+                render();
+                updateUI();
+                if (turn === 'red' && document.getElementById('gameMode').value === 'cpu') {
+                    setTimeout(cpuTurn, 700);
+                }
+                return;
+            }
+        }
+
+        multiJump = false;
+        sel = null; moves = [];
+        turn = turn === 'blue' ? 'red' : 'blue';
+        
+        if (checkGameOver(turn)) return;
+        
+        updateUI();
+        render();
+
+        if (document.getElementById('gameMode').value === 'cpu' && turn === 'red') {
+            setTimeout(cpuTurn, 700);
+        }
+    }
+
+    function checkGameOver(corTurno) {
+        let peçasDisponiveis = 0;
+        let movimentosPossiveis = 0;
+
+        grid.forEach((row, r) => {
+            row.forEach((cell, c) => {
+                if (cell && cell.color === corTurno) {
+                    peçasDisponiveis++;
+                    movimentosPossiveis += getMoves(r, c).length;
+                }
+            });
+        });
+
+        if (peçasDisponiveis === 0 || movimentosPossiveis === 0) {
+            const vencedor = corTurno === 'blue' ? 'VERMELHO' : 'AZUL';
+            mostrarVitoria(vencedor);
+            return true;
+        }
+        return false;
+    }
+
+    function mostrarVitoria(vencedor) {
+        const modal = document.getElementById('modal-vitoria');
+        const titulo = document.getElementById('vitoria-titulo');
+        const msg = document.getElementById('vitoria-msg');
+        
+        titulo.textContent = `VITÓRIA DO ${vencedor}!`;
+        titulo.style.color = vencedor === 'AZUL' ? 'var(--primary)' : 'var(--danger)';
+        msg.textContent = "O adversário não possui mais movimentos ou peças.";
+        modal.classList.remove('hidden');
+    }
+
+    function cpuTurn() {
+        let allMoves = [];
+        grid.forEach((row, r) => {
+            row.forEach((cell, c) => {
+                if (cell && cell.color === 'red') {
+                    const m = (multiJump && sel.r === r && sel.c === c) ? moves : (multiJump ? [] : getMoves(r, c));
+                    m.forEach(move => allMoves.push({from: {r, c}, to: move}));
+                }
+            });
+        });
+
+        if (allMoves.length > 0) {
+            const captures = allMoves.filter(m => m.to.cap);
+            let chosen;
+            if (captures.length > 0) {
+                chosen = captures[Math.floor(Math.random() * captures.length)];
+            } else {
+                chosen = allMoves[Math.floor(Math.random() * allMoves.length)];
+            }
+            sel = chosen.from;
+            executeMove(chosen.to);
+        } else {
+            checkGameOver('red');
+        }
+    }
+
+    function resetGame() {
+        pScore = 0; cScore = 0; turn = 'blue'; sel = null; moves = []; multiJump = false;
+        init();
+    }
+</script>
+</body>
+</html>

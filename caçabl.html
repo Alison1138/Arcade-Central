@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAÇA PALAVRAS BILINGUE</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --purple: #9b59b6;
+            --bg: #0b0e14;
+            --card-bg: #1a1f29;
+            --text: #e9ecef;
+            --overlay: rgba(0, 0, 0, 0.9);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- BOTÃO SAIR --- */
+        .exit-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3000;
+        }
+
+        .exit-button {
+            background: var(--danger);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .exit-button:hover {
+            background: #ff5252;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+        }
+
+        /* --- MODAIS E TELAS --- */
+        #modal-inicio, #tela-custom, #tutorial-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--overlay);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+
+        #tutorial-overlay {
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 550px;
+            text-align: center;
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 40px rgba(74, 144, 226, 0.2);
+        }
+
+        .tutorial-text {
+            text-align: left;
+            line-height: 1.6;
+            margin: 20px 0;
+            font-size: 1rem;
+        }
+
+        textarea {
+            width: 100%; height: 150px;
+            background: #0b0e14; color: white;
+            border: 1px solid var(--primary);
+            border-radius: 8px; padding: 12px;
+            margin: 15px 0; font-family: monospace; resize: none;
+            box-sizing: border-box;
+        }
+
+        /* --- INTERFACE --- */
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: #161b22;
+            width: 100%;
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
+
+        select, button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            background: var(--bg);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        select { background: #1a1f29; }
+        button:hover { background: var(--primary); }
+        .btn-reveal { border-color: #f39c12; color: #f39c12; }
+        .btn-custom { border-color: var(--success); color: var(--success); }
+        #modo-idioma, #custom-modo-idioma { border-color: var(--purple); color: var(--purple); }
+
+        .game-container {
+            display: flex; gap: 30px; padding: 20px;
+            flex-wrap: wrap; justify-content: center; max-width: 1300px;
+        }
+
+        #grid {
+            background: #21262d; padding: 10px; border-radius: 8px;
+            display: grid; gap: 2px; user-select: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .cell {
+            width: 32px; height: 32px; background: #161b22;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 0.9rem; border-radius: 2px;
+            transition: all 0.2s; color: #8b949e;
+        }
+
+        .cell.selected { background: var(--primary) !important; color: white; }
+        .cell.found { color: white !important; }
+
+        .sidebar { background: var(--card-bg); padding: 20px; border-radius: 12px; min-width: 250px; }
+        #listaPalavras { padding: 0; list-style: none; display: grid; gap: 8px; }
+        #listaPalavras li {
+            padding: 10px; background: rgba(255,255,255,0.03);
+            border-radius: 6px; font-size: 0.9rem; border-left: 4px solid transparent;
+        }
+        #listaPalavras li.strikethrough { text-decoration: line-through; opacity: 0.7; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="exit-control">
+    <button onclick="window.close()" class="exit-button">SAIR DO JOGO</button>
+</div>
+
+<div id="tutorial-overlay">
+    <div class="modal-content" id="tutorial-content">
+        <h2 style="color: var(--primary)">BEM-VINDO AO CAÇA PALAVRAS BILINGUE</h2>
+        <div class="tutorial-text">
+            Controle o mouse ou o toque para encontrar as palavras escondidas na grade!<br><br>
+            ✅ Clique na primeira letra e arraste até a última.<br>
+            ✅ As palavras podem estar na horizontal, vertical ou diagonal.<br>
+            ✅ Use o Modo Personalizado para criar seus próprios desafios.
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="proximoPassoTutorial()">ENTENDER COMANDOS</button>
+            <button style="background:none; border-color: #666;" onclick="fecharTutorial()">PULAR TUTORIAL</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-inicio" class="hidden">
+    <div class="modal-content">
+        <h2 style="color: var(--primary)">CAÇA PALAVRAS BILINGUE</h2>
+        <p>Escolha como deseja jogar:</p>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 25px;">
+            <button onclick="comecarJogo()">JOGAR TEMAS PADRÃO</button>
+            <button class="btn-custom" onclick="abrirCustomizacao()">MODO PERSONALIZADO</button>
+        </div>
+    </div>
+</div>
+
+<div id="tela-custom" class="hidden">
+    <div class="modal-content">
+        <h2 style="color: var(--success)">Customizar Jogo</h2>
+        <p>Insira seus pares de palavras (Português, Inglês):</p>
+        <textarea id="input-palavras" placeholder="Exemplo:&#10;Cachorro, Dog&#10;Gato, Cat&#10;Maçã, Apple"></textarea>
+        
+        <div class="controls" style="flex-direction: column; align-items: center;">
+            <select id="custom-modo-idioma" style="width: 100%;">
+                <option value="pt-pt">Tudo em Português</option>
+                <option value="en-en">Tudo em Inglês</option>
+                <option value="pt-en">Dica PT ➔ Grade EN</option>
+                <option value="en-pt">Dica EN ➔ Grade PT</option>
+            </select>
+            
+            <div style="display:flex; gap: 10px; width: 100%; margin-top: 10px;">
+                <button onclick="gerarCustomizado()" style="flex:2" class="btn-custom">CRIAR MEU JOGO</button>
+                <button onclick="fecharCustomizacao()" style="flex:1; background:none; border-color: #666;">VOLTAR</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="header">
+    <h1 style="margin:0; letter-spacing: 3px;"> <span style="color:var(--danger)">CAÇA PALAVRAS BILINGUE</span></h1>
+    <div class="controls">
+        <select id="modo-idioma">
+            <option value="pt-pt">Tudo em Português</option>
+            <option value="en-en">Tudo em Inglês</option>
+            <option value="pt-en">Dica PT ➔ Grade EN</option>
+            <option value="en-pt">Dica EN ➔ Grade PT</option>
+        </select>
+        <select id="nivel">
+            <option value="facil">Fácil (10x10)</option>
+            <option value="medio">Médio (13x13)</option>
+            <option value="dificil">Difícil (16x16)</option>
+            <option value="mestre" selected>MESTRE (20x20)</option>
+        </select>
+        <select id="tema">
+            <option value="astronomia">Astronomia</option>
+            <option value="culinaria">Culinária</option>
+            <option value="profissoes">Profissões</option>
+            <option value="tecnologia">Tecnologia</option>
+        </select>
+        <button onclick="novoJogo()">GERAR NOVO JOGO</button>
+        <button class="btn-custom" onclick="abrirCustomizacao()">CUSTOMIZAR</button>
+        <button class="btn-reveal" onclick="revelarRespostas()">REVELAR RESPOSTAS</button>
+    </div>
+</div>
+
+<div class="game-container">
+    <div id="grid"></div>
+    <div class="sidebar">
+        <h3 style="margin-top:0; border-bottom: 1px solid var(--primary); padding-bottom: 10px;">Palavras:</h3>
+        <ul id="listaPalavras"></ul>
+    </div>
+</div>
+
+<script>
+const bancoDePalavras = {
+    astronomia: [{pt:"GALAXIA", en:"GALAXY"}, {pt:"PLANETA", en:"PLANET"}, {pt:"ESTRELA", en:"STAR"}, {pt:"COMETA", en:"COMET"}, {pt:"METEORO", en:"METEOR"}, {pt:"UNIVERSO", en:"UNIVERSE"}, {pt:"ASTEROIDE", en:"ASTEROID"}, {pt:"TELESCOPIO", en:"TELESCOPE"}, {pt:"ORBITA", en:"ORBIT"}, {pt:"SATURNO", en:"SATURN"}],
+    culinaria: [{pt:"TEMPERO", en:"SPICE"}, {pt:"PANELA", en:"POT"}, {pt:"RECEITA", en:"RECIPE"}, {pt:"FORNO", en:"OVEN"}, {pt:"COZINHEIRO", en:"COOK"}, {pt:"INGREDIENTE", en:"INGREDIENT"}],
+    profissoes: [{pt:"MEDICO", en:"DOCTOR"}, {pt:"ENGENHEIRO", en:"ENGINEER"}, {pt:"PROFESSOR", en:"TEACHER"}, {pt:"POLICIAL", en:"POLICE"}],
+    tecnologia: [{pt:"ALGORITMO", en:"ALGORITHM"}, {pt:"SOFTWARE", en:"SOFTWARE"}, {pt:"INTERNET", en:"INTERNET"}, {pt:"SISTEMA", en:"SYSTEM"}, {pt:"DATABASE", en:"DATABASE"}]
+};
+
+const coresPalavras = ["#FF5733", "#33FF57", "#3357FF", "#F39C12", "#9B59B6", "#1ABC9C", "#E74C3C", "#3498DB", "#F1C40F", "#FF69B4"];
+const configNiveis = { facil: 10, medio: 13, dificil: 16, mestre: 20 };
+
+let grid = [], selecionando = false, selecionadas = [], posicoesRespostas = [], inicioSelecao = null;
+let usaCustom = false;
+
+// FUNÇÕES DO TUTORIAL
+function proximoPassoTutorial() {
+    const content = document.getElementById('tutorial-content');
+    content.innerHTML = `
+        <h2 style="color: var(--success)">DICAS PRO</h2>
+        <div class="tutorial-text">
+            1️⃣ <b>Idiomas:</b> No modo "Dica PT ➔ Grade EN", você lê em Português mas procura a tradução em Inglês!<br><br>
+            2️⃣ <b>Seleção Inversa:</b> Você pode selecionar a palavra de trás para frente também.<br><br>
+            3️⃣ <b>Respostas:</b> Ficou travado? Use o botão "Revelar Respostas" para destacar as palavras restantes.
+        </div>
+        <button onclick="fecharTutorial()">VAMOS COMEÇAR!</button>
+    `;
+}
+
+function fecharTutorial() {
+    document.getElementById('tutorial-overlay').classList.add('hidden');
+    document.getElementById('modal-inicio').classList.remove('hidden');
+}
+
+function abrirCustomizacao() { document.getElementById('tela-custom').classList.remove('hidden'); }
+function fecharCustomizacao() { document.getElementById('tela-custom').classList.add('hidden'); }
+function comecarJogo() { document.getElementById('modal-inicio').classList.add('hidden'); novoJogo(); }
+
+function gerarCustomizado() {
+    const texto = document.getElementById('input-palavras').value;
+    if(texto.split('\n').filter(l => l.includes(',')).length < 2) return alert("Insira ao menos 2 pares!");
+    document.getElementById('modo-idioma').value = document.getElementById('custom-modo-idioma').value;
+    usaCustom = true;
+    fecharCustomizacao();
+    document.getElementById('modal-inicio').classList.add('hidden');
+    novoJogo();
+}
+
+function novoJogo() {
+    const nivel = document.getElementById("nivel").value;
+    const tam = configNiveis[nivel];
+    const modoLingua = document.getElementById('modo-idioma').value;
+    grid = Array.from({length: tam}, () => Array(tam).fill(""));
+    posicoesRespostas = [];
+
+    let lista = [];
+    if(usaCustom) {
+        lista = document.getElementById('input-palavras').value.split('\n')
+                .filter(l => l.includes(',')).map(l => ({pt: l.split(',')[0].trim(), en: l.split(',')[1].trim()}));
+    } else {
+        lista = [...bancoDePalavras[document.getElementById("tema").value]].sort(() => 0.5 - Math.random());
+    }
+
+    lista.forEach((par, i) => {
+        let dica, busca;
+        if(modoLingua === "pt-en") { dica = par.pt; busca = par.en; }
+        else if(modoLingua === "en-pt") { dica = par.en; busca = par.pt; }
+        else if(modoLingua === "en-en") { dica = par.en; busca = par.en; }
+        else { dica = par.pt; busca = par.pt; }
+
+        if(busca) posicionarPalavra(busca.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase(), dica, coresPalavras[i % coresPalavras.length]);
+    });
+
+    preencherAleatorio();
+    desenhar();
+    usaCustom = false;
+}
+
+function posicionarPalavra(palavra, dica, cor) {
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+    for(let t=0; t<500; t++) {
+        const d = dirs[Math.floor(Math.random()*dirs.length)];
+        const x = Math.floor(Math.random()*grid.length), y = Math.floor(Math.random()*grid.length);
+        if(validarEspaco(palavra, x, y, d)) {
+            let coords = [];
+            for(let i=0; i<palavra.length; i++) {
+                grid[y + d[1]*i][x + d[0]*i] = palavra[i];
+                coords.push({y: y + d[1]*i, x: x + d[0]*i});
+            }
+            posicoesRespostas.push({palavra, dica, coords, cor, achada: false});
+            return true;
+        }
+    }
+}
+
+function validarEspaco(p, x, y, d) {
+    for(let i=0; i<p.length; i++) {
+        const nx = x + d[0]*i, ny = y + d[1]*i;
+        if(ny<0 || ny>=grid.length || nx<0 || nx>=grid.length || (grid[ny][nx] !== "" && grid[ny][nx] !== p[i])) return false;
+    }
+    return true;
+}
+
+function preencherAleatorio() {
+    for(let y=0; y<grid.length; y++)
+        for(let x=0; x<grid.length; x++)
+            if(grid[y][x] === "") grid[y][x] = String.fromCharCode(65 + Math.floor(Math.random()*26));
+}
+
+function desenhar() {
+    const container = document.getElementById("grid");
+    container.innerHTML = "";
+    container.style.gridTemplateColumns = `repeat(${grid.length}, auto)`;
+    grid.forEach((row, y) => {
+        row.forEach((letra, x) => {
+            const div = document.createElement("div");
+            div.className = "cell"; div.textContent = letra;
+            div.dataset.y = y; div.dataset.x = x;
+            div.onmousedown = (e) => { e.preventDefault(); selecionando = true; inicioSelecao = {y, x}; atualizarSelecao(div); };
+            div.onmouseover = () => { if(selecionando) atualizarSelecao(div); };
+            container.appendChild(div);
+        });
+    });
+    const lista = document.getElementById("listaPalavras");
+    lista.innerHTML = "";
+    posicoesRespostas.forEach((item, i) => {
+        const li = document.createElement("li");
+        li.textContent = item.dica;
+        li.id = "word-" + i;
+        lista.appendChild(li);
+    });
+}
+
+function atualizarSelecao(el) {
+    const fimY = parseInt(el.dataset.y), fimX = parseInt(el.dataset.x);
+    const iniY = inicioSelecao.y, iniX = inicioSelecao.x;
+    const diffY = fimY - iniY, diffX = fimX - iniX;
+    if (diffY !== 0 && diffX !== 0 && Math.abs(diffY) !== Math.abs(diffX)) return;
+    document.querySelectorAll(".cell.selected").forEach(c => c.classList.remove("selected"));
+    selecionadas = [];
+    let stepY = diffY === 0 ? 0 : diffY / Math.abs(diffY), stepX = diffX === 0 ? 0 : diffX / Math.abs(diffX);
+    let curY = iniY, curX = iniX;
+    while(true) {
+        const cell = document.querySelector(`.cell[data-y="${curY}"][data-x="${curX}"]`);
+        if(cell) { cell.classList.add("selected"); selecionadas.push(cell); }
+        if(curY === fimY && curX === fimX) break;
+        curY += stepY; curX += stepX;
+    }
+}
+
+document.onmouseup = () => {
+    if(!selecionando) return;
+    const sel = selecionadas.map(c => c.textContent).join("");
+    const inv = sel.split("").reverse().join("");
+    posicoesRespostas.forEach((item, i) => {
+        if((item.palavra === sel || item.palavra === inv) && !item.achada) {
+            item.achada = true;
+            selecionadas.forEach(c => { c.classList.add("found"); c.style.backgroundColor = item.cor; });
+            const li = document.getElementById("word-" + i);
+            li.classList.add("strikethrough");
+            li.style.color = item.cor; li.style.borderLeftColor = item.cor;
+            if(item.dica !== item.palavra) li.innerHTML = `${item.dica} ➔ <b>${item.palavra}</b>`;
+        }
+    });
+    document.querySelectorAll(".cell.selected").forEach(c => c.classList.remove("selected"));
+    selecionando = false;
+    if(posicoesRespostas.length > 0 && posicoesRespostas.every(p => p.achada)) setTimeout(() => alert("PARABÉNS!"), 200);
+};
+
+function revelarRespostas() {
+    posicoesRespostas.forEach((item, i) => {
+        if(!item.achada) {
+            item.coords.forEach(c => {
+                const cel = document.querySelector(`.cell[data-y="${c.y}"][data-x="${c.x}"]`);
+                cel.style.color = item.cor; cel.style.border = `1px solid ${item.cor}`;
+            });
+            const li = document.getElementById("word-" + i);
+            li.style.color = item.cor; li.style.borderLeftColor = item.cor;
+        }
+    });
+}
+</script>
+</body>
+</html>

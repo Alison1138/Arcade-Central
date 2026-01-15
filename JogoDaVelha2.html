@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha Pro</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-color: #16213e;
+            --accent: #e94560;
+            --cell-size: 100px;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #instructionScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .instruction-content {
+            background: var(--card-color);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+        }
+
+        .instruction-content h2 {
+            color: var(--accent);
+            margin-top: 0;
+        }
+
+        .instruction-content ul {
+            text-align: left;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .menu {
+            background: var(--card-color);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .difficulty-container {
+            display: none; 
+            margin-top: 15px;
+            border-top: 1px solid #2e3a59;
+            padding-top: 15px;
+        }
+
+        select, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid var(--accent);
+            background: #0f3460;
+            color: white;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .status {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            height: 35px;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, var(--cell-size));
+            gap: 10px;
+            background: var(--accent);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background: var(--card-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .cell:hover { background: #1f4068; }
+        .cell.x { color: #00d2ff; }
+        .cell.o { color: #f3ec78; }
+        
+        .reset-btn {
+            background: var(--accent);
+            font-weight: bold;
+            padding: 15px 30px;
+            border: none;
+            transition: transform 0.2s;
+        }
+        .reset-btn:hover { transform: scale(1.05); }
+
+        .top-controls {
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-controls">
+        <button class="reset-btn" onclick="resetGame()">Reiniciar Jogo</button>
+        <button class="reset-btn" onclick="window.close()" style="background: #555;">Sair</button>
+    </div>    
+
+    <div id="instructionScreen">
+        <div class="instruction-content">
+            <h2>Como Jogar</h2>
+            <ul>
+                <li>O objetivo é alinhar 3 símbolos (X ou O) na horizontal, vertical ou diagonal.</li>
+                <li>O jogador <b>X</b> sempre começa.</li>
+                <li>Você pode jogar contra um amigo ou contra a <b>IA (Minimax)</b>.</li>
+                <li>No modo imbatível, a IA nunca perde!</li>
+            </ul>
+            <button class="start-btn" onclick="startGame()">Entendi, vamos jogar!</button>
+        </div>
+    </div>
+
+    <div class="menu">
+        <div>
+            <label>Modo de Jogo:</label>
+            <select id="gameMode" onchange="toggleDifficulty()">
+                <option value="pvp">Pessoa vs Pessoa</option>
+                <option value="pvc">Pessoa vs Computador</option>
+            </select>
+        </div>
+
+        <div id="diffBox" class="difficulty-container">
+            <label>Nível da IA:</label>
+            <select id="difficulty">
+                <option value="easy">Fácil</option>
+                <option value="medium">Médio</option>
+                <option value="hard">Imbatível (Minimax)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="status" id="status">Vez do X</div>
+
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+
+    <script>
+        let board = ["", "", "", "", "", "", "", "", ""];
+        let currentPlayer = "X";
+        let gameActive = true;
+        const cells = document.querySelectorAll('.cell');
+        const statusText = document.getElementById('status');
+        const modeSelect = document.getElementById('gameMode');
+        const diffBox = document.getElementById('diffBox');
+
+        function startGame() {
+            document.getElementById('instructionScreen').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function toggleDifficulty() {
+            diffBox.style.display = modeSelect.value === 'pvc' ? 'block' : 'none';
+            resetGame();
+        }
+
+        function handleCellClick(e) {
+            const index = e.target.getAttribute('data-index');
+            if (board[index] !== "" || !gameActive) return;
+            if (modeSelect.value === 'pvc' && currentPlayer === "O") return;
+
+            makeMove(index, currentPlayer);
+
+            if (gameActive && modeSelect.value === 'pvc' && currentPlayer === "O") {
+                setTimeout(computerPlay, 500);
+            }
+        }
+
+        function makeMove(index, player) {
+            board[index] = player;
+            cells[index].innerText = player;
+            cells[index].classList.add(player.toLowerCase());
+            
+            if (checkWin(board, player)) {
+                statusText.innerText = `Jogador ${player} venceu! 🎉`;
+                gameActive = false;
+                return;
+            }
+            if (board.every(cell => cell !== "")) {
+                statusText.innerText = "Empate! 🤝";
+                gameActive = false;
+                return;
+            }
+
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            statusText.innerText = `Vez do ${currentPlayer}`;
+        }
+
+        function checkWin(currentBoard, player) {
+            const winPatterns = [
+                [0,1,2], [3,4,5], [6,7,8], [0,3,6], 
+                [1,4,7], [2,5,8], [0,4,8], [2,4,6]
+            ];
+            return winPatterns.some(pattern => {
+                return pattern.every(index => currentBoard[index] === player);
+            });
+        }
+
+        function computerPlay() {
+            if (!gameActive) return;
+            const diff = document.getElementById('difficulty').value;
+            let move;
+
+            if (diff === 'easy') move = getRandomMove();
+            else if (diff === 'medium') move = getMediumMove();
+            else move = getBestMove();
+
+            if (move !== null) makeMove(move, "O");
+        }
+
+        function getRandomMove() {
+            let available = board.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function getMediumMove() {
+            for(let i=0; i<9; i++) {
+                if(board[i] === "") {
+                    board[i] = "O";
+                    if(checkWin(board, "O")) { board[i] = ""; return i; }
+                    board[i] = "";
+                }
+            }
+            for(let i=0; i<9; i++) {
+                if(board[i] === "") {
+                    board[i] = "X";
+                    if(checkWin(board, "X")) { board[i] = ""; return i; }
+                    board[i] = "";
+                }
+            }
+            return getRandomMove();
+        }
+
+        function getBestMove() {
+            let bestScore = -Infinity;
+            let move;
+            for (let i = 0; i < 9; i++) {
+                if (board[i] === "") {
+                    board[i] = "O";
+                    let score = minimax(board, 0, false);
+                    board[i] = "";
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move = i;
+                    }
+                }
+            }
+            return move;
+        }
+
+        function minimax(tempBoard, depth, isMaximizing) {
+            if (checkWin(tempBoard, "O")) return 10 - depth;
+            if (checkWin(tempBoard, "X")) return depth - 10;
+            if (tempBoard.every(c => c !== "")) return 0;
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (tempBoard[i] === "") {
+                        tempBoard[i] = "O";
+                        bestScore = Math.max(bestScore, minimax(tempBoard, depth + 1, false));
+                        tempBoard[i] = "";
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (tempBoard[i] === "") {
+                        tempBoard[i] = "X";
+                        bestScore = Math.min(bestScore, minimax(tempBoard, depth + 1, true));
+                        tempBoard[i] = "";
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function resetGame() {
+            board = ["", "", "", "", "", "", "", "", ""];
+            gameActive = true;
+            currentPlayer = "X";
+            statusText.innerText = "Vez do X";
+            cells.forEach(cell => {
+                cell.innerText = "";
+                cell.classList.remove('x', 'o');
+            });
+        }
+
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    </script>
+</body>
+</html>

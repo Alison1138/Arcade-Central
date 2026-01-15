@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMÓRIA BILÍNGUE</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --purple: #9b59b6;
+            --bg: #0b0e14;
+            --card-bg: #1a1f29;
+            --text: #e9ecef;
+            --overlay: rgba(0, 0, 0, 0.9);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- BOTÃO SAIR --- */
+        .exit-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3000;
+        }
+
+        .exit-button {
+            background: var(--danger);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .exit-button:hover {
+            background: #ff5252;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+        }
+
+        /* --- MODAIS E TUTORIAL --- */
+        #tutorial-overlay, #tela-custom {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--overlay); display: flex; justify-content: center; align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: var(--card-bg); padding: 30px; border-radius: 20px;
+            width: 90%; max-width: 550px; text-align: center; border: 2px solid var(--success);
+            max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 0 40px rgba(46, 204, 113, 0.2);
+        }
+
+        .tutorial-text {
+            text-align: left;
+            line-height: 1.6;
+            margin: 20px 0;
+            font-size: 1rem;
+        }
+
+        .header {
+            text-align: center; padding: 20px;
+            background: #161b22; width: 100%;
+            border-bottom: 2px solid var(--success);
+            margin-bottom: 20px;
+        }
+
+        .controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
+
+        select, button {
+            padding: 10px 15px; border-radius: 8px;
+            border: 1px solid var(--primary); background: var(--bg);
+            color: white; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+
+        select { background: #1a1f29; }
+        button:hover { background: var(--primary); }
+        .btn-custom { border-color: var(--success); color: var(--success); }
+        .btn-delete { border-color: var(--danger); color: var(--danger); font-size: 0.7rem; padding: 5px; }
+
+        /* --- GRADE DO JOGO --- */
+        .memory-game {
+            display: grid;
+            gap: 15px;
+            perspective: 1000px;
+            margin: 20px;
+            justify-content: center;
+        }
+
+        .memory-card {
+            width: 125px; height: 125px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s;
+            cursor: pointer;
+        }
+
+        .memory-card.flip { transform: rotateY(180deg); }
+
+        .front, .back {
+            width: 100%; height: 100%;
+            position: absolute;
+            backface-visibility: hidden;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 12px;
+            font-weight: bold; font-size: 0.9rem;
+            text-align: center; padding: 10px; box-sizing: border-box;
+            border: 2px solid var(--primary);
+        }
+
+        .back { background: var(--card-bg); color: var(--primary); font-size: 2.2rem; }
+        .front {
+            background: #21262d;
+            color: white;
+            transform: rotateY(180deg);
+            border-color: var(--success);
+            word-break: break-word;
+        }
+
+        .memory-card.matched .front {
+            background: var(--success);
+            border-color: #fff;
+        }
+
+        textarea { width: 100%; height: 100px; background: #0b0e14; color: white; border-radius: 8px; padding: 10px; margin: 10px 0; border: 1px solid var(--primary); }
+        
+        .saved-games-list {
+            margin-top: 20px; text-align: left;
+            border-top: 1px solid #333; padding-top: 15px;
+        }
+        .saved-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 8px;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="exit-control">
+    <button onclick="window.close()" class="exit-button">SAIR DO JOGO</button>
+</div>
+
+<div id="tutorial-overlay">
+    <div class="modal-content" id="tutorial-content">
+        <h2 style="color: var(--success)">BEM-VINDO AO MEMÓRIA BILÍNGUE</h2>
+        <div class="tutorial-text">
+            Teste sua memória e seu vocabulário neste desafio bilíngue!<br><br>
+            ✅ Clique em uma carta para revelá-la.<br>
+            ✅ Encontre o par correspondente (Tradução ou Igual).<br>
+            ✅ Use o Modo Personalizado para criar seus próprios conjuntos de palavras.
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="proximoPassoTutorial()">ENTENDER COMANDOS</button>
+            <button style="background:none; border-color: #666;" onclick="fecharTutorial()">PULAR TUTORIAL</button>
+        </div>
+    </div>
+</div>
+
+<div class="header">
+    <h1 style="margin:0; color: var(--success)">MEMÓRIA BILÍNGUE</h1>
+    <div class="controls">
+        <select id="modo-idioma">
+            <option value="alternado">PT ➔ EN (Bilíngue)</option>
+            <option value="pt">PT ➔ PT (Português)</option>
+            <option value="en">EN ➔ EN (Inglês)</option>
+        </select>
+        <select id="nivel">
+            <option value="4">4 Pares</option>
+            <option value="8" selected>8 Pares</option>
+            <option value="12">12 Pares</option>
+        </select>
+        <select id="tema">
+            <option value="animais">Animais</option>
+            <option value="frutas">Frutas</option>
+            <option value="cores">Cores</option>
+            <option value="familia">Família</option>
+            <option value="casa">Casa</option>
+            <option value="natureza">Natureza</option>
+            <option value="roupas">Roupas</option>
+            <option value="sentimentos">Sentimentos</option>
+            <option value="astronomia">Astronomia</option>
+            <option value="culinaria">Culinária</option>
+            <option value="tecnologia">Tecnologia</option>
+        </select>
+        <button onclick="novoJogo()">GERAR TEMA</button>
+        <button class="btn-custom" onclick="abrirCustom()">MEUS JOGOS / SALVAR</button>
+    </div>
+</div>
+
+<div id="tela-custom" class="hidden">
+    <div class="modal-content">
+        <h2 style="color: var(--success)">Gerenciar Jogos Customizados</h2>
+        
+        <input type="text" id="nome-jogo" placeholder="Nome do seu jogo (Ex: Verbos)" style="width:100%; padding:10px; border-radius:5px; background:#0b0e14; color:white; border:1px solid var(--primary); box-sizing:border-box;">
+        <textarea id="input-palavras" placeholder="Gato, Cat&#10;Cachorro, Dog"></textarea>
+        
+        <button onclick="salvarECriarJogo()" class="btn-custom" style="width:100%">SALVAR E JOGAR</button>
+        
+        <div class="saved-games-list">
+            <h4 style="margin: 0 0 10px 0; color: var(--primary)">Jogos Salvos no Navegador:</h4>
+            <div id="lista-salvos"></div>
+        </div>
+
+        <button onclick="fecharCustom()" style="margin-top:20px; background:none; border-color:#555;">FECHAR</button>
+    </div>
+</div>
+
+<div class="memory-game" id="game-board"></div>
+
+<script>
+const banco = {
+    animais: [{pt:"LEÃO", en:"LION"}, {pt:"GATO", en:"CAT"}, {pt:"CACHORRO", en:"DOG"}, {pt:"COELHO", en:"RABBIT"}, {pt:"PÁSSARO", en:"BIRD"}, {pt:"PEIXE", en:"FISH"}, {pt:"MACACO", en:"MONKEY"}, {pt:"COBRA", en:"SNAKE"}, {pt:"URSO", en:"BEAR"}, {pt:"ELEFANTE", en:"ELEPHANT"}, {pt:"TIGRE", en:"TIGER"}, {pt:"ZEBRA", en:"ZEBRA"}],
+    frutas: [{pt:"MAÇÃ", en:"APPLE"}, {pt:"BANANA", en:"BANANA"}, {pt:"UVA", en:"GRAPE"}, {pt:"MORANGO", en:"STRAWBERRY"}, {pt:"LARANJA", en:"ORANGE"}, {pt:"LIMÃO", en:"LEMON"}, {pt:"PERA", en:"PEAR"}, {pt:"MANGA", en:"MANGO"}, {pt:"ABACAXI", en:"PINEAPPLE"}, {pt:"MELANCIA", en:"WATERMELON"}, {pt:"CEREJA", en:"CHERRY"}, {pt:"AMORA", en:"BLACKBERRY"}],
+    cores: [{pt:"VERMELHO", en:"RED"}, {pt:"AZUL", en:"BLUE"}, {pt:"VERDE", en:"GREEN"}, {pt:"AMARELO", en:"YELLOW"}, {pt:"PRETO", en:"BLACK"}, {pt:"BRANCO", en:"WHITE"}, {pt:"ROSA", en:"PINK"}, {pt:"ROXO", en:"PURPLE"}, {pt:"LARANJA", en:"ORANGE"}, {pt:"CINZA", en:"GRAY"}, {pt:"MARROM", en:"BROWN"}, {pt:"DOURADO", en:"GOLD"}],
+    familia: [{pt:"PAI", en:"FATHER"}, {pt:"MÃE", en:"MOTHER"}, {pt:"IRMÃO", en:"BROTHER"}, {pt:"IRMÃ", en:"SISTER"}, {pt:"AVÔ", en:"GRANDFATHER"}, {pt:"AVÓ", en:"GRANDMOTHER"}, {pt:"TIO", en:"UNCLE"}, {pt:"TIA", en:"AUNT"}, {pt:"PRIMO", en:"COUSIN"}, {pt:"FILHO", en:"SON"}, {pt:"FILHA", en:"DAUGHTER"}, {pt:"SOBRINHO", en:"NEPHEW"}],
+    casa: [{pt:"CAMA", en:"BED"}, {pt:"MESA", en:"TABLE"}, {pt:"CADEIRA", en:"CHAIR"}, {pt:"SOFÁ", en:"SOFA"}, {pt:"PORTA", en:"DOOR"}, {pt:"JANELA", en:"WINDOW"}, {pt:"COZINHA", en:"KITCHEN"}, {pt:"QUARTO", en:"BEDROOM"}, {pt:"BANHEIRO", en:"BATHROOM"}, {pt:"LÂMPADA", en:"LAMP"}, {pt:"ESPELHO", en:"MIRROR"}, {pt:"TAPETE", en:"RUG"}],
+    natureza: [{pt:"ÁRVORE", en:"TREE"}, {pt:"FLOR", en:"FLOWER"}, {pt:"RIO", en:"RIVER"}, {pt:"MONTANHA", en:"MOUNTAIN"}, {pt:"MAR", en:"SEA"}, {pt:"CHUVA", en:"RAIN"}, {pt:"SOL", en:"SUN"}, {pt:"NUVEM", en:"CLOUD"}, {pt:"PEDRA", en:"STONE"}, {pt:"FLORESTA", en:"FOREST"}, {pt:"VENTO", en:"WIND"}, {pt:"GRAMA", en:"GRASS"}],
+    roupas: [{pt:"CAMISA", en:"SHIRT"}, {pt:"CALÇA", en:"PANTS"}, {pt:"SAPATO", en:"SHOE"}, {pt:"MEIA", en:"SOCK"}, {pt:"VESTIDO", en:"DRESS"}, {pt:"CHAPÉU", en:"HAT"}, {pt:"CASACO", en:"COAT"}, {pt:"SAIA", en:"SKIRT"}, {pt:"LUVAS", en:"GLOVES"}, {pt:"CINTO", en:"BELT"}, {pt:"BOTAS", en:"BOOTS"}, {pt:"GRAVATA", en:"TIE"}],
+    sentimentos: [{pt:"FELIZ", en:"HAPPY"}, {pt:"TRISTE", en:"SAD"}, {pt:"RAIVA", en:"ANGRY"}, {pt:"CANSADO", en:"TIRED"}, {pt:"MEDO", en:"FEAR"}, {pt:"AMOR", en:"LOVE"}, {pt:"SURPRESA", en:"SURPRISE"}, {pt:"CALMO", en:"CALM"}, {pt:"FOME", en:"HUNGRY"}, {pt:"SEDE", en:"THIRSTY"}, {pt:"ORGULHO", en:"PRIDE"}, {pt:"TEDIO", en:"BOREDOM"}],
+    astronomia: [{pt:"GALÁXIA", en:"GALAXY"}, {pt:"SOL", en:"SUN"}, {pt:"PLANETA", en:"PLANET"}, {pt:"ESTRELA", en:"STAR"}, {pt:"COMETA", en:"COMET"}, {pt:"METEORO", en:"METEOR"}, {pt:"ÓRBITA", en:"ORBIT"}, {pt:"UNIVERSO", en:"UNIVERSE"}, {pt:"SATURNO", en:"SATURN"}, {pt:"LUA", en:"MOON"}, {pt:"ASTEROIDE", en:"ASTEROID"}, {pt:"COSMOS", en:"COSMOS"}],
+    culinaria: [{pt:"PÃO", en:"BREAD"}, {pt:"FORNO", en:"OVEN"}, {pt:"FACA", en:"KNIFE"}, {pt:"PRATO", en:"PLATE"}, {pt:"SAL", en:"SALT"}, {pt:"BOLO", en:"CAKE"}, {pt:"RECEITA", en:"RECIPE"}, {pt:"GARFO", en:"FORK"}, {pt:"COLHER", en:"SPOON"}, {pt:"PANELA", en:"POT"}, {pt:"TEMPERO", en:"SPICE"}, {pt:"SOPA", en:"SOUP"}],
+    tecnologia: [{pt:"TECLADO", en:"KEYBOARD"}, {pt:"TELA", en:"SCREEN"}, {pt:"DADOS", en:"DATA"}, {pt:"CÓDIGO", en:"CODE"}, {pt:"NUVEM", en:"CLOUD"}, {pt:"MOUSE", en:"MOUSE"}, {pt:"SITE", en:"WEBSITE"}, {pt:"SENHA", en:"PASSWORD"}, {pt:"REDE", en:"NETWORK"}, {pt:"CHIP", en:"CHIP"}, {pt:"SISTEMA", en:"SYSTEM"}, {pt:"CELULAR", en:"MOBILE"}]
+};
+
+let hasFlippedCard = false, lockBoard = false, firstCard, secondCard;
+let matchedPairs = 0, totalPairs = 0;
+
+// FUNÇÕES DO TUTORIAL
+function proximoPassoTutorial() {
+    const content = document.getElementById('tutorial-content');
+    content.innerHTML = `
+        <h2 style="color: var(--primary)">DICAS PRO</h2>
+        <div class="tutorial-text">
+            1️⃣ <b>Idiomas:</b> No modo "Bilíngue", você deve encontrar a palavra em português e sua tradução em inglês!<br><br>
+            2️⃣ <b>Pares:</b> Quando você acerta, as cartas ficam verdes e permanecem viradas.<br><br>
+            3️⃣ <b>Customização:</b> Salve suas próprias listas para estudar temas específicos.
+        </div>
+        <button onclick="fecharTutorial()">VAMOS COMEÇAR!</button>
+    `;
+}
+
+function fecharTutorial() {
+    document.getElementById('tutorial-overlay').classList.add('hidden');
+    novoJogo();
+}
+
+function abrirCustom() { document.getElementById('tela-custom').classList.remove('hidden'); carregarListaSalva(); }
+function fecharCustom() { document.getElementById('tela-custom').classList.add('hidden'); }
+
+function salvarECriarJogo() {
+    const nome = document.getElementById('nome-jogo').value.trim() || "Meu Jogo";
+    const texto = document.getElementById('input-palavras').value;
+    const lista = texto.split('\n').filter(l => l.includes(',')).map(l => ({
+        pt: l.split(',')[0].trim().toUpperCase(), 
+        en: l.split(',')[1].trim().toUpperCase()
+    }));
+
+    if(lista.length < 2) return alert("Insira pelo menos 2 pares!");
+
+    let salvos = JSON.parse(localStorage.getItem('jogosMemoriaV2') || '[]');
+    salvos.push({ nome, data: lista });
+    localStorage.setItem('jogosMemoriaV2', JSON.stringify(salvos));
+
+    iniciarJogo(lista);
+    fecharCustom();
+}
+
+function carregarListaSalva() {
+    const container = document.getElementById('lista-salvos');
+    const salvos = JSON.parse(localStorage.getItem('jogosMemoriaV2') || '[]');
+    container.innerHTML = salvos.length === 0 ? "<p style='opacity:0.5'>Nenhum jogo salvo.</p>" : "";
+
+    salvos.forEach((jogo, index) => {
+        const div = document.createElement('div');
+        div.className = 'saved-item';
+        div.innerHTML = `
+            <span style="cursor:pointer; flex-grow:1" onclick="jogarSalvo(${index})">📂 ${jogo.nome}</span>
+            <button class="btn-delete" onclick="deletarSalvo(${index})">EXCLUIR</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function jogarSalvo(idx) {
+    const salvos = JSON.parse(localStorage.getItem('jogosMemoriaV2') || '[]');
+    iniciarJogo(salvos[idx].data);
+    fecharCustom();
+}
+
+function deletarSalvo(idx) {
+    let salvos = JSON.parse(localStorage.getItem('jogosMemoriaV2') || '[]');
+    salvos.splice(idx, 1);
+    localStorage.setItem('jogosMemoriaV2', JSON.stringify(salvos));
+    carregarListaSalva();
+}
+
+function novoJogo() {
+    const tema = document.getElementById('tema').value;
+    const qtd = parseInt(document.getElementById('nivel').value);
+    const lista = [...banco[tema]].sort(() => 0.5 - Math.random()).slice(0, qtd);
+    iniciarJogo(lista);
+}
+
+function iniciarJogo(lista) {
+    const board = document.getElementById('game-board');
+    const modo = document.getElementById('modo-idioma').value;
+    board.innerHTML = "";
+    matchedPairs = 0;
+    totalPairs = lista.length;
+    
+    const cols = totalPairs > 8 ? 6 : (totalPairs > 4 ? 4 : 2);
+    board.style.gridTemplateColumns = `repeat(${cols}, 125px)`;
+
+    let cards = [];
+    lista.forEach((par, idx) => {
+        let t1, t2;
+        if(modo === "pt") { t1 = par.pt; t2 = par.pt; }
+        else if(modo === "en") { t1 = par.en; t2 = par.en; }
+        else { t1 = par.pt; t2 = par.en; }
+        cards.push(criarCard(t1, idx), criarCard(t2, idx));
+    });
+
+    cards.sort(() => 0.5 - Math.random()).forEach(card => board.appendChild(card));
+    [hasFlippedCard, lockBoard] = [false, false];
+}
+
+function criarCard(texto, id) {
+    const card = document.createElement('div');
+    card.className = 'memory-card';
+    card.dataset.framework = id;
+    card.innerHTML = `<div class="front">${texto}</div><div class="back">?</div>`;
+    card.onclick = flipCard;
+    return card;
+}
+
+function flipCard() {
+    if (lockBoard || this === firstCard) return;
+    this.classList.add('flip');
+    if (!hasFlippedCard) {
+        hasFlippedCard = true;
+        firstCard = this;
+        return;
+    }
+    secondCard = this;
+    let isMatch = firstCard.dataset.framework === secondCard.dataset.framework;
+    if(isMatch) {
+        firstCard.classList.add('matched'); secondCard.classList.add('matched');
+        matchedPairs++;
+        resetBoard();
+        if(matchedPairs === totalPairs) setTimeout(() => alert("Perfeito!"), 500);
+    } else {
+        lockBoard = true;
+        setTimeout(() => {
+            firstCard.classList.remove('flip'); secondCard.classList.remove('flip');
+            resetBoard();
+        }, 1000);
+    }
+}
+
+function resetBoard() { [hasFlippedCard, lockBoard] = [false, false]; [firstCard, secondCard] = [null, null]; }
+
+// Inicia com o tutorial visível, o jogo carrega ao fechar o tutorial
+window.onload = () => {
+    // Apenas garante que o tutorial esteja visível
+};
+</script>
+</body>
+</html>
